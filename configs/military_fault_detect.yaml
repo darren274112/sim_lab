@@ -5,6 +5,15 @@ timeout: 600
 vars:
   target_service: fire-control
   scenario: battalion_attack
+  # ROSS 运行时故障注入参数：由 ross.start_sim 在启动仿真时透传给 sim-bridge。
+  # type: lp_crash（目标 LP 在 at_time 后宕机，停止产生下游事件）
+  #       comm_loss（通信 LP 在 at_time 后断链，COMM_MSG 全部丢弃）
+  # target_lp: 单位 LP 的 gid（0..units-1）；comm_loss 时填通信 LP 的 gid（= units+2）
+  # at_time: 仿真时间轴上的触发时刻（绝对时刻，单位与 --end 一致）
+  ross_fault:
+    type: lp_crash
+    target_lp: 0
+    at_time: 3.0
 
 steps:
   - id: check_env
@@ -25,10 +34,11 @@ steps:
     timeout: 30
 
   - id: start_sim
-    name: 启动想定仿真
+    name: 启动想定仿真（注入ROSS运行时故障）
     action: ross.start_sim
     params:
       scenario: "${vars.scenario}"
+      fault: "${vars.ross_fault}"
     timeout: 60
 
   - id: inject

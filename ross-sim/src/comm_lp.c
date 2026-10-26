@@ -27,6 +27,16 @@ void event_comm_lp(comm_state *s, tw_bf *bf, mil_message *msg, tw_lp *lp)
 {
     (void) bf;
 
+    /* 故障注入：通信 LP 自身宕机则直接丢弃全部事件 */
+    if (fault_drop_event(lp->gid, tw_now(lp)))
+        return;
+
+    /* 故障注入：通信中断后强制 comms_up=0，COMM_MSG 将被丢弃 */
+    if (g_fault.enabled && g_fault.type == FAULT_COMM_LOSS &&
+        lp->gid == g_fault.target && tw_now(lp) >= g_fault.at) {
+        s->comms_up = 0;
+    }
+
     switch (msg->type) {
         case EVENT_COMM_LOST:
             s->comms_up = 0;

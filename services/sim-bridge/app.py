@@ -2,6 +2,7 @@ from common.base import create_app, REQUEST_COUNT
 from fastapi import HTTPException
 import os
 import re
+import json
 import subprocess
 import threading
 import time
@@ -11,6 +12,9 @@ SERVICE_NAME = os.getenv("SERVICE_NAME", "sim-bridge")
 
 MIL_SIM_PATH = os.getenv("MIL_SIM_PATH", "/app/ross-sim/build/mil_sim")
 ROSS_LOG_PATH = os.getenv("ROSS_LOG_PATH", "/tmp/ross-sim.log")
+ROSS_FAULT_PATH = os.getenv("ROSS_FAULT_PATH", "/tmp/ross_fault.json")
+
+VALID_FAULT_TYPES = {"lp_crash", "comm_loss"}
 
 ross_status = {
     "running": False,
@@ -25,6 +29,20 @@ ross_status = {
 ross_process = None
 ross_run_id = 0
 ross_lock = threading.Lock()
+ross_fault = None  # 待生效故障：{"type", "target_lp", "at_time", "injected_at"}
+
+
+def _load_fault():
+    """启动时从磁盘恢复未清掉的故障配置（Pod 重启后保持）"""
+    global ross_fault
+    try:
+        with open(ROSS_FAULT_PATH) as f:
+            ross_fault = json.load(f)
+    except (OSError, ValueError):
+        ross_fault = None
+
+
+_load_fault()
 
 
 def _ross_available():
@@ -46,12 +64,12 @@ def _parse_log(text):
     return result
 
 
-def _run_ross(cmd, run_id):
+def _run_ross(cmd, run_id, env=None):
     """后台运行 mil_sim，结束后回收退出码和统计信息"""
     global ross_process
     try:
         with open(ROSS_LOG_PATH, "w") as log:
-            proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, text=True)
+            proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, text=True, env=env)
             with ross_lock:
                 if run_id != ross_run_id:
                     proc.terminate()
@@ -96,6 +114,7 @@ def root():
         "service": SERVICE_NAME,
         "real_ross_available": _ross_available(),
         "mil_sim_path": MIL_SIM_PATH,
+        "pending_fault": ross_fault,
         "ross": ross_status,
     }
 
@@ -134,6 +153,7 @@ def start(scenario: str = "battalion_attack",
             "returncode": None,
             "pid": None,
             "error": None,
+            "fault": ross_fault,
         })
 
     # --synch=1 为顺序仿真；当前 mil_sim 的反向计算未实现，不能用乐观同步
@@ -143,11 +163,18 @@ def start(scenario: str = "battalion_attack",
         f"--end={end_time}",
         f"--units={units}",
     ]
-    threading.Thread(target=_run_ross, args=(cmd, rid), daemon=True).start()
+    # 若有待生效故障，将其作为环境变量注入 mil_sim（由 C 侧 fault_init 读取）
+    env = dict(os.environ)
+    if ross_fault:
+        env["ROSS_FAULT_TYPE"] = ross_fault["type"]
+        env["ROSS_FAULT_TARGET"] = str(ross_fault["target_lp"])
+        env["ROSS_FAULT_AT"] = str(ross_fault["at_time"])
+    threading.Thread(target=_run_ross, args=(cmd, rid, env), daemon=True).start()
     return {
         "started": True,
         "scenario": scenario,
         "mode": "real",
+        "fault": ross_fault,
         "command": cmd,
         "log": ROSS_LOG_PATH,
     }
@@ -171,12 +198,47 @@ def ross_log():
 
 
 @app.post("/inject_fault")
-def inject_fault(fault_type: str = "comm_loss", target_lp: int = 21):
+def inject_fault(fault_type: str = "lp_crash", target_lp: int = 0, at_time: float = 5.0):
+    """向 ROSS 仿真注入故障。
+
+    - lp_crash: 目标 LP（gid）在 at_time 后停止处理任何事件，视为宕机。
+    - comm_loss: 通信 LP（gid=units+2）在 at_time 后中断，COMM_MSG 全部丢弃。
+    故障会在下一次 /start 时通过环境变量注入 mil_sim，并持续生效直到 /clear_fault。
+    """
     REQUEST_COUNT.labels(method="POST", endpoint="/inject_fault").inc()
-    raise HTTPException(
-        status_code=501,
-        detail="ROSS 运行时故障注入尚未实现；当前只能通过 K8S 对微服务注入故障",
-    )
+    global ross_fault
+    if fault_type not in VALID_FAULT_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"不支持的故障类型: {fault_type}，可选: {sorted(VALID_FAULT_TYPES)}",
+        )
+    if target_lp < 0:
+        raise HTTPException(status_code=400, detail="target_lp 必须为非负整数")
+    ross_fault = {
+        "type": fault_type,
+        "target_lp": int(target_lp),
+        "at_time": float(at_time),
+        "injected_at": time.time(),
+    }
+    try:
+        with open(ROSS_FAULT_PATH, "w") as f:
+            json.dump(ross_fault, f)
+    except OSError:
+        pass
+    return {"status": "injected", "fault": ross_fault}
+
+
+@app.post("/clear_fault")
+def clear_fault():
+    """清除待生效的故障配置"""
+    REQUEST_COUNT.labels(method="POST", endpoint="/clear_fault").inc()
+    global ross_fault
+    ross_fault = None
+    try:
+        os.remove(ROSS_FAULT_PATH)
+    except OSError:
+        pass
+    return {"status": "cleared"}
 
 
 @app.get("/lp_status")
@@ -190,6 +252,7 @@ def lp_status():
         "running": ross_status["running"],
         "lp_count": ross_status["lp_count"],
         "events_processed": ross_status["events_processed"],
+        "fault": ross_fault,
         "units": [{"lp": i, "type": "unit", "side": i % 2} for i in range(units)],
         "sensors": [{"lp": units + 1, "type": "sensor"}],
         "fire_control": [{"lp": units, "type": "fire_control"}],

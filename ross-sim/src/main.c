@@ -118,6 +118,8 @@ int main(int argc, char **argv)
     }
     num_units = (int) cli_units;
 
+    fault_init();
+
     /* 单位 LP + 火控/传感器/通信/地形 4 个特殊 LP */
     g_fc_lp = num_units;
     g_sensor_lp = num_units + 1;
@@ -140,6 +142,13 @@ int main(int argc, char **argv)
     tw_lp_settype(g_terrain_lp, &military_lps[4]);
 
     tw_run();
+
+    if (g_fault.enabled) {
+        printf("=== FAULT REPORT: type=%s target=%llu at=%.2f, events_dropped=%ld ===\n",
+               g_fault.type == FAULT_LP_CRASH ? "lp_crash" :
+               (g_fault.type == FAULT_COMM_LOSS ? "comm_loss" : "none"),
+               (unsigned long long) g_fault.target, g_fault.at, g_fault.dropped);
+    }
 
     printf("\n=== Simulation Complete (end time %.1f) ===\n", g_tw_ts_end);
 

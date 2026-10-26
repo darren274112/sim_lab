@@ -15,6 +15,11 @@ void event_sensor_lp(sensor_state *s, tw_bf *bf, mil_message *msg, tw_lp *lp)
 {
     (void) bf;
 
+    /* 故障注入：目标 LP 宕机后丢弃其所有入站事件 */
+    if (fault_drop_event(lp->gid, tw_now(lp))) {
+        return;
+    }
+
     if (!s->active) {
         return;
     }

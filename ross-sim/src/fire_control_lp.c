@@ -16,6 +16,11 @@ void event_fc_lp(fc_state *s, tw_bf *bf, mil_message *msg, tw_lp *lp)
 {
     (void) bf;
 
+    /* 故障注入：目标 LP 宕机后丢弃其所有入站事件 */
+    if (fault_drop_event(lp->gid, tw_now(lp))) {
+        return;
+    }
+
     /* 故障注入后火控效率下降 */
     if (s->degraded) {
         s->efficiency = 0.3;

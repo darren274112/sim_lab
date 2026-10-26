@@ -109,4 +109,27 @@ extern tw_lpid g_sensor_lp;
 extern tw_lpid g_comm_lp;
 extern tw_lpid g_terrain_lp;
 
+/* ===== 故障注入（由 sim-bridge 通过环境变量 ROSS_FAULT_* 传入） ===== */
+typedef enum {
+    FAULT_NONE = 0,
+    FAULT_LP_CRASH,   /* 目标 LP 在 at 时刻后停止处理任何事件（视为宕机） */
+    FAULT_COMM_LOSS   /* 通信 LP 在 at 时刻后中断，COMM_MSG 全部丢弃 */
+} fault_type_t;
+
+typedef struct {
+    int enabled;
+    fault_type_t type;
+    tw_lpid target;   /* 目标 LP gid */
+    tw_stime at;      /* 触发仿真时刻 */
+    long dropped;     /* 被故障丢弃的事件计数（用于报告） */
+} fault_cfg_t;
+
+extern fault_cfg_t g_fault;
+
+/* 返回 1 表示当前事件应被故障丢弃（目标 LP 已宕机） */
+int fault_drop_event(tw_lpid lp_gid, tw_stime now);
+
+/* 从环境变量初始化故障配置；必须在 tw_run() 之前调用 */
+void fault_init(void);
+
 #endif

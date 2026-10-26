@@ -36,6 +36,11 @@ void event_unit_lp(unit_state *s, tw_bf *bf, mil_message *msg, tw_lp *lp)
 {
     (void) bf;
 
+    /* 故障注入：目标 LP 宕机后丢弃其所有入站事件 */
+    if (fault_drop_event(lp->gid, tw_now(lp))) {
+        return;
+    }
+
     switch (msg->type) {
         case EVENT_MOVE:
             if (s->health > 0) {
@@ -115,6 +120,12 @@ void rc_event_unit_lp(unit_state *s, tw_bf *bf, mil_message *msg, tw_lp *lp)
 
 void final_unit_lp(unit_state *s, tw_lp *lp)
 {
+    if (g_fault.enabled && g_fault.type == FAULT_LP_CRASH &&
+        lp->gid == g_fault.target) {
+        printf("LP %llu (side %d): CRASHED at time %.2f (events dropped by fault)\n",
+               (unsigned long long) lp->gid, s->side, g_fault.at);
+        return;
+    }
     if (s->health > 0) {
         printf("LP %llu (side %d): Final status OK, health=%d, ammo=%d, pos=(%.1f,%.1f)\n",
                (unsigned long long) lp->gid, s->side, s->health, s->ammo, s->x, s->y);

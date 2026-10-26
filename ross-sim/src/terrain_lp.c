@@ -11,6 +11,13 @@ void init_terrain_lp(terrain_state *s, tw_lp *lp)
 
 void event_terrain_lp(terrain_state *s, tw_bf *bf, mil_message *msg, tw_lp *lp)
 {
+    (void) s;
+    (void) bf;
+    (void) msg;
+    (void) lp;
+    /* 故障注入：目标 LP 宕机后丢弃其所有入站事件 */
+    if (fault_drop_event(lp->gid, tw_now(lp)))
+        return;
     /* Terrain affects visibility and movement */
 }
 
