@@ -8,7 +8,7 @@ vars:
 
 steps:
   - id: check_env
-    name: 检查K8S环境与军事仿真微服务状态
+    name: 检查K8S环境与仿真微服务状态
     action: k8s.check_ready
     params:
       services: ["orchestrator", "scenario-mgr", "entity-service", "comms-service", "sensor-service", "fire-control", "env-service", "log-service", "state-store", "telemetry-gw", "sim-bridge"]
@@ -20,12 +20,12 @@ steps:
     timeout: 30
 
   - id: baseline
-    name: 采集军事仿真基线指标
+    name: 采集仿真基线指标
     action: obs.collect_baseline
     timeout: 30
 
   - id: start_sim
-    name: 启动军事想定仿真
+    name: 启动想定仿真
     action: ross.start_sim
     params:
       scenario: "${vars.scenario}"

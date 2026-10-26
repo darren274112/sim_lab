@@ -1,15 +1,18 @@
 from fastapi import FastAPI
 from prometheus_client import make_asgi_app, Counter, Gauge
 import os
+import re
 import time
 
 SERVICE_NAME = os.getenv("SERVICE_NAME", "unknown")
+# Prometheus 指标名只允许字母、数字、下划线和冒号，服务名中的 "-" 需替换掉
+METRIC_PREFIX = re.sub(r"[^a-zA-Z0-9_]", "_", SERVICE_NAME)
 START_TIME = time.time()
 
-REQUEST_COUNT = Counter(f'{SERVICE_NAME}_requests_total', 'Total requests', ['method', 'endpoint'])
-HEALTH_STATUS = Gauge(f'{SERVICE_NAME}_health', 'Health status')
-BUSINESS_READY = Gauge(f'{SERVICE_NAME}_business_ready', 'Business ready status')
-UP_TIME = Gauge(f'{SERVICE_NAME}_uptime_seconds', 'Uptime')
+REQUEST_COUNT = Counter(f'{METRIC_PREFIX}_requests_total', 'Total requests', ['method', 'endpoint'])
+HEALTH_STATUS = Gauge(f'{METRIC_PREFIX}_health', 'Health status')
+BUSINESS_READY = Gauge(f'{METRIC_PREFIX}_business_ready', 'Business ready status')
+UP_TIME = Gauge(f'{METRIC_PREFIX}_uptime_seconds', 'Uptime')
 
 def create_app():
     app = FastAPI(title=f"Military Sim Service - {SERVICE_NAME}")

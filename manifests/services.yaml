@@ -1,0 +1,120 @@
+# 微服务内部访问入口。fire-control 的 Service 已定义在 fire-control.yaml 中。
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestrator
+  namespace: sim-test
+spec:
+  selector:
+    app: orchestrator
+  ports:
+  - port: 8080
+    targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scenario-mgr
+  namespace: sim-test
+spec:
+  selector:
+    app: scenario-mgr
+  ports:
+  - port: 8080
+    targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: entity-service
+  namespace: sim-test
+spec:
+  selector:
+    app: entity-service
+  ports:
+  - port: 8080
+    targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: comms-service
+  namespace: sim-test
+spec:
+  selector:
+    app: comms-service
+  ports:
+  - port: 8080
+    targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sensor-service
+  namespace: sim-test
+spec:
+  selector:
+    app: sensor-service
+  ports:
+  - port: 8080
+    targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: env-service
+  namespace: sim-test
+spec:
+  selector:
+    app: env-service
+  ports:
+  - port: 8080
+    targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: log-service
+  namespace: sim-test
+spec:
+  selector:
+    app: log-service
+  ports:
+  - port: 8080
+    targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: state-store
+  namespace: sim-test
+spec:
+  selector:
+    app: state-store
+  ports:
+  - port: 8080
+    targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: telemetry-gw
+  namespace: sim-test
+spec:
+  selector:
+    app: telemetry-gw
+  ports:
+  - port: 8080
+    targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sim-bridge
+  namespace: sim-test
+spec:
+  selector:
+    app: sim-bridge
+  ports:
+  - port: 8080
+    targetPort: 8080

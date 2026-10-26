@@ -1,5 +1,5 @@
 #!/bin/bash
-echo "=== 军事仿真微服务算法验证沙箱演示 ==="
+echo "=== 仿真微服务算法验证沙箱演示 ==="
 echo ""
 
 echo "1. 查看帮助"
@@ -20,4 +20,4 @@ echo ""
 
 echo "5. 微服务清单（11个）"
 grep -n "^metadata:" manifests/all-services.yaml | wc -l
-echo "   共11个军事仿真微服务"
+echo "   共11个仿真微服务"

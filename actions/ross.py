@@ -11,7 +11,7 @@ def ross_check_ready(ctx, params):
 
 @register_action("ross.start_sim")
 def ross_start_sim(ctx, params):
-    """启动军事想定仿真"""
+    """启动想定仿真"""
     print("[ROSS] Starting military simulation scenario...")
     ctx["ross_running"] = True
     return {"status": "started"}

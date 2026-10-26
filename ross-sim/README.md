@@ -1,6 +1,6 @@
 # ROSS Military Simulation
 
-基于ROSS（Rensselaer's Optimistic Simulation System）的真实军事离散事件仿真。
+基于ROSS（Rensselaer's Optimistic Simulation System）的真实离散事件仿真。
 
 ## 场景：营级进攻战斗（Battalion Attack）
 

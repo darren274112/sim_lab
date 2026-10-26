@@ -2,6 +2,7 @@
 # 简易工作流引擎：按 YAML 配置顺序执行步骤，支持断点续跑、单步调试、跳步等
 import argparse
 import json
+import sys
 import time
 import yaml
 from datetime import datetime
@@ -235,6 +236,10 @@ def main():
 
     args = parser.parse_args()
 
+    # 以 `python wf.py` 方式运行时，__main__ 和 actions 中 import 的 wf 是
+    # 两个不同的模块对象，会导致动作注册到另一份 ACTIONS 里。这里统一别名。
+    sys.modules["wf"] = sys.modules["__main__"]
+
     # 注册所有动作（按需加载）
     import actions.k8s  # noqa
     import actions.fault  # noqa
@@ -246,7 +251,8 @@ def main():
     if args.command == "run":
         skip = args.skip.split(",") if args.skip else []
         engine = WorkflowEngine(args.config, args.exp_id)
-        engine.run(from_step=args.from_step, skip_steps=skip, single_step=args.single_step)
+        success = engine.run(from_step=args.from_step, skip_steps=skip, single_step=args.single_step)
+        raise SystemExit(0 if success else 1)
     elif args.command == "status":
         engine = WorkflowEngine.__new__(WorkflowEngine)
         engine.exp_id = args.id

@@ -8,10 +8,10 @@
 - **actions/**: 动作实现（K8s操作、故障注入、观测、算法调用等）
 - **algos/**: 算法实现目录（研发直接在这里写算法）
 - **configs/**: 实验配置YAML
-- **services/**: 11个军事仿真微服务 + ROSS桥接
+- **services/**: 11个仿真微服务 + ROSS桥接
 - **manifests/**: K8s部署清单
 
-## 军事仿真微服务（11个）
+## 仿真微服务（11个）
 
 1. orchestrator - 自研工作流编排器
 2. scenario-mgr - 想定管理（营攻击、空防、合同作战等）
@@ -29,7 +29,15 @@
 
 ### 安装依赖
 ```bash
-pip install pyyaml kubernetes
+python3 -m pip install -i https://mirrors.aliyun.com/pypi/simple -r requirements.txt
+```
+
+### 构建并部署微服务
+首次运行需构建 11 个镜像并导入 K3S（使用 buildah，无需 Docker）：
+```bash
+sudo apt-get install -y buildah
+sudo ./scripts/build-images.sh
+./scripts/deploy.sh
 ```
 
 ### 查看实验状态

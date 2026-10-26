@@ -17,6 +17,7 @@ spec:
       containers:
       - name: orchestrator
         image: sim/orchestrator:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
 ---
@@ -39,6 +40,7 @@ spec:
       containers:
       - name: scenario-mgr
         image: sim/scenario-mgr:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
 ---
@@ -61,6 +63,7 @@ spec:
       containers:
       - name: entity-service
         image: sim/entity-service:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
 ---
@@ -83,6 +86,7 @@ spec:
       containers:
       - name: comms-service
         image: sim/comms-service:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
 ---
@@ -105,6 +109,7 @@ spec:
       containers:
       - name: sensor-service
         image: sim/sensor-service:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
 ---
@@ -127,6 +132,7 @@ spec:
       containers:
       - name: env-service
         image: sim/env-service:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
 ---
@@ -150,6 +156,7 @@ spec:
       containers:
       - name: log-service
         image: sim/log-service:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
 ---
@@ -172,6 +179,7 @@ spec:
       containers:
       - name: state-store
         image: sim/state-store:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
 ---
@@ -194,6 +202,7 @@ spec:
       containers:
       - name: telemetry-gw
         image: sim/telemetry-gw:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
 ---
@@ -216,6 +225,7 @@ spec:
       containers:
       - name: sim-bridge
         image: sim/sim-bridge:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
         env:

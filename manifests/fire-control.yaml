@@ -18,6 +18,7 @@ spec:
       containers:
       - name: fire-control
         image: sim/fire-control:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
         resources:
