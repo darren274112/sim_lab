@@ -2,6 +2,7 @@
 #define MIL_SIM_H
 
 #include <ross.h>
+#include <string.h>
 
 #define MAX_UNITS 32
 #define MAX_TRACKS 64
@@ -88,6 +89,7 @@ typedef struct {
 
 /* Event messages */
 typedef struct {
+    int type;
     unit_type_t unit_type;
     int side;
     double x, y;
@@ -100,5 +102,11 @@ typedef struct {
 extern tw_lpid *unit_lps;
 extern int num_units;
 extern tw_stime g_mean_interval;
+
+/* 特殊 LP 的 gid：单位 LP 占用 0..num_units-1 */
+extern tw_lpid g_fc_lp;
+extern tw_lpid g_sensor_lp;
+extern tw_lpid g_comm_lp;
+extern tw_lpid g_terrain_lp;
 
 #endif

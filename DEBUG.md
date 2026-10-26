@@ -235,7 +235,92 @@ sudo -u root python3 wf.py run --config configs/military_fault_detect.yaml --id 
 
 - `fault.inject_netem` / `fault.clear_netem` 目前是预留接口，只打印日志，不会真正修改网络。
 - `state-store` 的 3 个副本使用各自进程内存，状态并不共享，做一致性实验时需要替换为共享存储或实现副本同步。
-- `sim-bridge` 默认使用 mock 模式；真实 ROSS 引擎需要额外构建并挂载到镜像中。
+- `sim-bridge` 已移除 mock 模式，`/start` 会直接运行 ROSS；如果镜像中缺少 `mil_sim`，接口返回 503。故障注入接口当前返回 501，尚未接入运行中的 ROSS。
+- 工作流动作 `ross.start_sim` 目前只记录上下文状态，并未调用 sim-bridge；真实 ROSS 的运行请使用 `scripts/test-ross.sh` 或直接调用 sim-bridge 的 `/start`。
+
+## ROSS 仿真引擎（sim-bridge）
+
+### 是否需要单独镜像
+
+**不需要。** ROSS 是一个 C 语言离散事件仿真库，`ross-sim` 编译出的是可执行文件 `mil_sim`，它们都不是对外提供 HTTP 接口的微服务，因此：
+
+- 不需要为 ROSS 建单独的 Deployment/Service/镜像；
+- 已通过 **多阶段构建** 把 ROSS + `mil_sim` 编译进 `sim/sim-bridge:latest`；
+- 运行 `mil_sim` 的 MPI 运行库也已装进同一个镜像；
+- sim-bridge 通过子进程启动 `mil_sim`，再通过 HTTP 暴露启动/状态查询接口。
+
+这样 K8S 中仍然只有 11 个微服务镜像，sim-bridge 是唯一与 ROSS 相关的镜像。
+
+### 镜像构建方式
+
+`services/sim-bridge/Dockerfile` 分两个阶段：
+
+1. `ross-builder`：安装 `build-essential cmake mpich libmpich-dev`，下载 ROSS `v8.1.1` 源码，安装到 `/opt/ross`，再编译 `ross-sim` 得到 `/src/ross-sim/build/mil_sim`。
+2. 运行阶段：只保留 Python 服务、`mil_sim` 和 `libmpich12`，不包含编译器和 ROSS 源码。
+
+```bash
+sudo ./scripts/build-images.sh sim-bridge
+./scripts/deploy.sh
+```
+
+可用构建参数覆盖 ROSS 版本/下载地址：
+
+```bash
+buildah bud \
+  --build-arg ROSS_VERSION=8.1.1 \
+  --build-arg ROSS_URL=https://codeload.github.com/ross-org/ROSS/tar.gz/refs/tags/v8.1.1 \
+  -t docker.io/sim/sim-bridge:latest -f services/sim-bridge/Dockerfile .
+```
+
+说明：
+
+- 当前环境访问 GitHub 直链不稳定，Dockerfile 默认使用 `codeload.github.com`。
+- buildah 解压 ROSS tar 包时可能报 `Cannot change mode ... Operation not permitted`，文件实际已解出，Dockerfile 中已忽略该错误并用 `test -f CMakeLists.txt` 校验。
+- 容器内单进程运行 MPI 程序时 UCX 可能选错网卡，镜像中已设置 `UCX_TLS=sm,self`。
+
+### 在 K3S 中验证真实 ROSS
+
+```bash
+./scripts/test-ross.sh
+```
+
+脚本会通过 `orchestrator` Pod 调用 sim-bridge：
+
+```bash
+curl -X POST 'http://sim-bridge:8080/start?end_time=20&units=10'
+curl http://sim-bridge:8080/status
+curl http://sim-bridge:8080/ross/log
+```
+
+`/start` 不再接受 `use_real_ross` 参数，调用即运行真实 ROSS。已验证结果：
+
+- `/start` 返回 `mode: real`
+- `/status` 返回 `running: false`、`returncode: 0`、`lp_count: 14`、`events_processed: 691`
+- 日志末尾出现 `=== Simulation Complete (end time 20.0) ===`
+
+如果镜像中没有 `mil_sim`，`/start` 返回 `503`，不会退回到模拟数据。
+
+### 本地编译 ross-sim
+
+```bash
+sudo apt-get install -y build-essential cmake mpich libmpich-dev
+# 先安装 ROSS 到 /opt/ross（步骤见 Dockerfile 的 ross-builder 阶段）
+cd ross-sim
+ROSS_DIR=/opt/ross ./scripts/build.sh
+UCX_TLS=sm,self ./scripts/run_scenario.sh
+```
+
+### 为适配当前 ROSS 版本做的修改
+
+原 `ross-sim` 代码按旧版 ROSS API 编写，在 ROSS 8.1.1 下无法编译/运行，已修改：
+
+- `tw_lptype` 从 6 个字段补全为 8 个字段（`init/pre_run/event/revent/commit/final/map/state_sz`）。
+- 增加 `mil_map()`；ROSS 发送事件时会调用 `src_lp->type->map`，为 `NULL` 会段错误。
+- 移除已不存在的 `tw_event_type()`，改为在 `mil_message` 中携带事件类型。
+- `tw_nlp` 改为 `g_tw_nlp`，移除 `tw_set_lps_per_pe()`。
+- 特殊 LP（火控/传感器/通信/地形）改为动态分配在单位 LP 之后，不再写死 20/21/22/23。
+- `--nlp=24` 改为 `--units=N`；`--synch=3`（乐观同步）改为 `--synch=1`（顺序同步），因为当前反向计算/回滚处理尚未实现。
+- `CMakeLists.txt` 增加 `include/` 路径和 MPI 链接，`scripts/*.sh` 去掉 macOS 硬编码路径。
 
 ## 环境准备
 ```bash

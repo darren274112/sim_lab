@@ -26,3 +26,20 @@
 - FIRE：射击
 - DAMAGE：毁伤
 - COMM_LOST：通信中断（故障注入点）
+
+## 构建与运行
+
+依赖 ROSS（默认安装在 `/opt/ross`）、CMake 和 MPI：
+
+```bash
+sudo apt-get install -y build-essential cmake mpich libmpich-dev
+# 将 ROSS 安装到 /opt/ross 后：
+ROSS_DIR=/opt/ross ./scripts/build.sh
+UNITS=20 END=100 ./scripts/run_scenario.sh
+```
+
+当前 `ross-sim` 未实现乐观同步的反向计算，运行时使用顺序同步（`--synch=1`）。
+容器内通过 `UCX_TLS=sm,self` 避免 MPI/UCX 选错网卡。
+
+`sim-bridge` 镜像会在构建时自动完成上述 ROSS 和 `mil_sim` 的编译，无需在宿主机安装。
+

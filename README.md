@@ -40,6 +40,11 @@ sudo ./scripts/build-images.sh
 ./scripts/deploy.sh
 ```
 
+`sim-bridge` 镜像通过多阶段构建内置了 ROSS 8.1.1 和 `mil_sim`，不需要为 ROSS 单独构建镜像或部署服务。sim-bridge 已移除 mock 模式，调用 `/start` 即运行真实 ROSS。验证：
+```bash
+./scripts/test-ross.sh
+```
+
 ### 查看实验状态
 ```bash
 python wf.py status --id exp-xxx

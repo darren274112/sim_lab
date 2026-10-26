@@ -229,5 +229,5 @@ spec:
         ports:
         - containerPort: 8080
         env:
-        - name: ROSS_PATH
-          value: "/opt/ross"
+        - name: MIL_SIM_PATH
+          value: "/app/ross-sim/build/mil_sim"
