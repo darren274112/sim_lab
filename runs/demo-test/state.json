@@ -1,0 +1,89 @@
+{
+  "exp_id": "demo-test",
+  "status": "FAILED",
+  "steps": {
+    "check_env": {
+      "id": "check_env",
+      "name": "\u68c0\u67e5K8S\u73af\u5883\u4e0e\u519b\u4e8b\u4eff\u771f\u5fae\u670d\u52a1\u72b6\u6001",
+      "status": "PENDING",
+      "start_time": null,
+      "end_time": null,
+      "error": null,
+      "result": null
+    },
+    "ross_ready": {
+      "id": "ross_ready",
+      "name": "\u68c0\u67e5ROSS\u4eff\u771f\u5f15\u64ce\u72b6\u6001",
+      "status": "PENDING",
+      "start_time": null,
+      "end_time": null,
+      "error": null,
+      "result": null
+    },
+    "baseline": {
+      "id": "baseline",
+      "name": "\u91c7\u96c6\u519b\u4e8b\u4eff\u771f\u57fa\u7ebf\u6307\u6807",
+      "status": "PENDING",
+      "start_time": null,
+      "end_time": null,
+      "error": null,
+      "result": null
+    },
+    "start_sim": {
+      "id": "start_sim",
+      "name": "\u542f\u52a8\u519b\u4e8b\u60f3\u5b9a\u4eff\u771f",
+      "status": "PENDING",
+      "start_time": null,
+      "end_time": null,
+      "error": null,
+      "result": null
+    },
+    "inject": {
+      "id": "inject",
+      "name": "\u6ce8\u5165\u6545\u969c\uff08\u6a21\u62df\u706b\u63a7\u670d\u52a1\u5931\u6548\uff09",
+      "status": "PENDING",
+      "start_time": null,
+      "end_time": null,
+      "error": null,
+      "result": null
+    },
+    "wait_propagate": {
+      "id": "wait_propagate",
+      "name": "\u7b49\u5f85\u6545\u969c\u4f20\u64ad",
+      "status": "PENDING",
+      "start_time": null,
+      "end_time": null,
+      "error": null,
+      "result": null
+    },
+    "detect": {
+      "id": "detect",
+      "name": "\u8c03\u7528\u6545\u969c\u611f\u77e5\u7b97\u6cd5\uff08\u6df1\u5ea6\u5b66\u4e60+\u94fe\u8def\u8ffd\u8e2a\uff09",
+      "status": "FAILED",
+      "start_time": 1792893174.957334,
+      "end_time": 1792893174.9574358,
+      "error": "Action algo.run_detect not found",
+      "result": null,
+      "duration": 0.00010180473327636719
+    },
+    "measure": {
+      "id": "measure",
+      "name": "\u8ba1\u7b97\u6545\u969c\u611f\u77e5\u5ef6\u8fdf",
+      "status": "PENDING",
+      "start_time": null,
+      "end_time": null,
+      "error": null,
+      "result": null
+    },
+    "cleanup": {
+      "id": "cleanup",
+      "name": "\u6e05\u7406\u5b9e\u9a8c\u73af\u5883",
+      "status": "PENDING",
+      "start_time": null,
+      "end_time": null,
+      "error": null,
+      "result": null
+    }
+  },
+  "updated_at": "2026-10-25T09:52:54.957590"
+}

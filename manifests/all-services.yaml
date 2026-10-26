@@ -1,0 +1,223 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestrator
+  namespace: sim-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: orchestrator
+  template:
+    metadata:
+      labels:
+        app: orchestrator
+        tier: core
+    spec:
+      containers:
+      - name: orchestrator
+        image: sim/orchestrator:latest
+        ports:
+        - containerPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scenario-mgr
+  namespace: sim-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scenario-mgr
+  template:
+    metadata:
+      labels:
+        app: scenario-mgr
+        tier: core
+    spec:
+      containers:
+      - name: scenario-mgr
+        image: sim/scenario-mgr:latest
+        ports:
+        - containerPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: entity-service
+  namespace: sim-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: entity-service
+  template:
+    metadata:
+      labels:
+        app: entity-service
+        tier: core
+    spec:
+      containers:
+      - name: entity-service
+        image: sim/entity-service:latest
+        ports:
+        - containerPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: comms-service
+  namespace: sim-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: comms-service
+  template:
+    metadata:
+      labels:
+        app: comms-service
+        tier: core
+    spec:
+      containers:
+      - name: comms-service
+        image: sim/comms-service:latest
+        ports:
+        - containerPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sensor-service
+  namespace: sim-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sensor-service
+  template:
+    metadata:
+      labels:
+        app: sensor-service
+        tier: core
+    spec:
+      containers:
+      - name: sensor-service
+        image: sim/sensor-service:latest
+        ports:
+        - containerPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: env-service
+  namespace: sim-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: env-service
+  template:
+    metadata:
+      labels:
+        app: env-service
+        tier: core
+    spec:
+      containers:
+      - name: env-service
+        image: sim/env-service:latest
+        ports:
+        - containerPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-service
+  namespace: sim-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: log-service
+  template:
+    metadata:
+      labels:
+        app: log-service
+        tier: non-core
+        criticality: P3
+    spec:
+      containers:
+      - name: log-service
+        image: sim/log-service:latest
+        ports:
+        - containerPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: state-store
+  namespace: sim-test
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: state-store
+  template:
+    metadata:
+      labels:
+        app: state-store
+        tier: core
+    spec:
+      containers:
+      - name: state-store
+        image: sim/state-store:latest
+        ports:
+        - containerPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telemetry-gw
+  namespace: sim-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: telemetry-gw
+  template:
+    metadata:
+      labels:
+        app: telemetry-gw
+        tier: core
+    spec:
+      containers:
+      - name: telemetry-gw
+        image: sim/telemetry-gw:latest
+        ports:
+        - containerPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sim-bridge
+  namespace: sim-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sim-bridge
+  template:
+    metadata:
+      labels:
+        app: sim-bridge
+        tier: core
+    spec:
+      containers:
+      - name: sim-bridge
+        image: sim/sim-bridge:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: ROSS_PATH
+          value: "/opt/ross"

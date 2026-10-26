@@ -1,0 +1,49 @@
+name: military-consistency
+namespace: sim-test
+timeout: 600
+
+vars:
+  scenario: combined_arms
+
+steps:
+  - id: check_env
+    name: 检查环境
+    action: k8s.check_ready
+    params:
+      services: ["orchestrator", "state-store", "entity-service", "telemetry-gw"]
+    timeout: 60
+
+  - id: start_sim
+    name: 启动仿真
+    action: ross.start_sim
+    params:
+      scenario: "${vars.scenario}"
+    timeout: 60
+
+  - id: inject_net
+    name: 注入网络延迟（模拟分区）
+    action: fault.inject_netem
+    params:
+      service: state-store
+      delay: 200ms
+      loss: 10%
+    timeout: 30
+
+  - id: consist
+    name: 调用一致性算法（模糊控制+排队论）
+    action: algo.run_consist
+    params:
+      algo: consist_baseline
+    timeout: 120
+
+  - id: cleanup_net
+    name: 清理网络规则
+    action: fault.clear_netem
+    timeout: 30
+    always_run: true
+
+  - id: cleanup
+    name: 清理环境
+    action: k8s.restore
+    timeout: 60
+    always_run: true

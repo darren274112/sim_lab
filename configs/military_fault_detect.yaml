@@ -1,0 +1,65 @@
+name: military-fault-detect
+namespace: sim-test
+timeout: 600
+
+vars:
+  target_service: fire-control
+  scenario: battalion_attack
+
+steps:
+  - id: check_env
+    name: 检查K8S环境与军事仿真微服务状态
+    action: k8s.check_ready
+    params:
+      services: ["orchestrator", "scenario-mgr", "entity-service", "comms-service", "sensor-service", "fire-control", "env-service", "log-service", "state-store", "telemetry-gw", "sim-bridge"]
+    timeout: 60
+
+  - id: ross_ready
+    name: 检查ROSS仿真引擎状态
+    action: ross.check_ready
+    timeout: 30
+
+  - id: baseline
+    name: 采集军事仿真基线指标
+    action: obs.collect_baseline
+    timeout: 30
+
+  - id: start_sim
+    name: 启动军事想定仿真
+    action: ross.start_sim
+    params:
+      scenario: "${vars.scenario}"
+    timeout: 60
+
+  - id: inject
+    name: 注入故障（模拟火控服务失效）
+    action: fault.inject_pod_kill
+    params:
+      service: "${vars.target_service}"
+    record_time: inject_time
+    timeout: 30
+
+  - id: wait_propagate
+    name: 等待故障传播
+    action: k8s.check_ready
+    params:
+      services: ["${vars.target_service}"]
+    timeout: 60
+
+  - id: detect
+    name: 调用故障感知算法（深度学习+链路追踪）
+    action: algo.run_detect
+    params:
+      algo: fault_detect_baseline
+    timeout: 120
+
+  - id: measure
+    name: 计算故障感知延迟
+    action: measure.detect_latency
+    timeout: 10
+
+  - id: cleanup
+    name: 清理实验环境
+    action: k8s.restore
+    timeout: 60
+    always_run: true
