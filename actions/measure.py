@@ -20,10 +20,28 @@ def measure_detect_latency(ctx, params):
         ctx["metrics"]["detect_latency"] = result
         print(f"\n{'='*50}")
         print(f"DETECT_LATENCY: {latency:.3f}s ({latency*1000:.1f}ms)")
-        print(f"DETECTED: {ctx.get('algorithm_result', {}).get('detected')}")
-        print(f"SERVICE: {ctx.get('algorithm_result', {}).get('faulty_service')}")
+        print(f"DETECTED: {ctx.get('detect_result', {}).get('detected')}")
+        print(f"SERVICE: {ctx.get('detect_result', {}).get('faulty_service')}")
         print(f"{'='*50}\n")
         return result
     else:
         print(f"[MEASURE] Missing timestamps: inject={inject_time}, detect={detect_time}")
         return {"error": "missing timestamps"}
+
+
+@register_action("measure.recovery_time")
+def measure_recovery_time(ctx, params):
+    """计算故障恢复时间 = 容错动作记录的 recovered_at - inject_time（不含感知时间）"""
+    res = ctx.get("tolerate_result") or {}
+    rt = res.get("recovery_time_s")
+    if rt is not None:
+        ctx["metrics"] = ctx.get("metrics", {})
+        ctx["metrics"]["recovery_time"] = {"recovery_time_s": rt}
+        print(f"\n{'='*50}")
+        print(f"RECOVERY_TIME: {rt:.3f}s")
+        print(f"STRATEGY: {res.get('strategy')}")
+        print(f"{'='*50}\n")
+        return {"recovery_time_s": rt}
+    else:
+        print("[MEASURE] No recovery_time available (tolerate did not record one)")
+        return {"error": "no recovery_time"}

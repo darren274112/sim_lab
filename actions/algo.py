@@ -13,6 +13,7 @@ def run_detect(ctx, params):
     mod = importlib.import_module(f"algos.{algo_name}")
     res = mod.detect(ctx)
     ctx["algorithm_result"] = res
+    ctx["detect_result"] = res
 
     detect_time = res.get("detected_at")
     if isinstance(detect_time, (int, float)):
@@ -35,6 +36,7 @@ def run_tolerate(ctx, params):
     mod = importlib.import_module(f"algos.{algo_name}")
     res = mod.tolerate(ctx)
     ctx["algorithm_result"] = res
+    ctx["tolerate_result"] = res
     return res
 
 
