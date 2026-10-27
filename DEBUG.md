@@ -85,7 +85,9 @@ kube-system   svclb-traefik-e191e098-x8654              2/2     Running
 kube-system   traefik-7c8544f77-k4xnb                   1/1     Running
 ```
 
-`kubectl apply --dry-run=client` 校验了 `sim-test` 命名空间及 11 个微服务清单，语法和 API 版本兼容当前 K3S。
+`kubectl apply --dry-run=client` 校验了 `sim-test` 命名空间及微服务清单，语法和 API 版本兼容当前 K3S。
+（本节是 2026-10-26 首次部署时的 11 个核心服务快照；现在仓库已扩展到 11 核心 + 6 平台服务，
+完整清单与部署顺序见 `docs/K3S-PLATFORM.md`。）
 
 ### 常用运维命令
 
@@ -131,7 +133,7 @@ python3 -m pip install -i https://mirrors.aliyun.com/pypi/simple -r requirements
 ### 构建镜像
 
 ```bash
-sudo ./scripts/build-images.sh               # 构建全部 11 个服务
+sudo ./scripts/build-images.sh               # 构建全部 17 个服务（11 核心 + 6 平台）
 sudo ./scripts/build-images.sh fire-control  # 只构建指定服务
 IMPORT=0 sudo ./scripts/build-images.sh      # 只构建，不导入 K3S
 ```
@@ -149,7 +151,10 @@ IMPORT=0 sudo ./scripts/build-images.sh      # 只构建，不导入 K3S
 sudo k3s ctr -n k8s.io images ls -q | grep '^docker.io/sim/'
 ```
 
-应看到 11 个镜像：`orchestrator`、`scenario-mgr`、`entity-service`、`comms-service`、`sensor-service`、`fire-control`、`env-service`、`log-service`、`state-store`、`telemetry-gw`、`sim-bridge`。
+应看到 17 个镜像：核心服务 `orchestrator`、`scenario-mgr`、`entity-service`、`comms-service`、
+`sensor-service`、`fire-control`、`env-service`、`log-service`、`state-store`、`telemetry-gw`、
+`sim-bridge`，以及平台服务 `api-gateway`、`auth-service`、`config-service`、
+`notification-service`、`platform-service`、`chaos-service`。
 
 ### 部署
 
@@ -160,9 +165,11 @@ sudo k3s ctr -n k8s.io images ls -q | grep '^docker.io/sim/'
 脚本会依次完成：
 
 1. apply `namespace.yaml`、`all-services.yaml`、`fire-control.yaml`、`services.yaml`
-2. 重启全部 Deployment，确保重新构建的 `:latest` 镜像生效
-3. 等待滚动更新完成、旧 Pod 退出、全部 Pod Ready
-4. 输出 Pod 和 Service 列表
+2. apply 平台清单：`platform-rbac.yaml`、`platform-services.yaml`、`platform-policy.yaml`、`platform-ingress.yaml`
+3. 默认 apply `jaeger.yaml`、`prometheus.yaml`；`OBSERVABILITY=0` 可跳过
+4. 重启全部 Deployment，确保重新构建的 `:latest` 镜像生效（`RESTART=0` 可跳过）
+5. 等待滚动更新完成、旧 Pod 退出、全部 Pod Ready
+6. 输出 Pod 和 Service 列表
 
 如需手工部署：
 
@@ -171,13 +178,19 @@ kubectl apply -f manifests/namespace.yaml
 kubectl apply -f manifests/all-services.yaml
 kubectl apply -f manifests/fire-control.yaml
 kubectl apply -f manifests/services.yaml
+kubectl apply -f manifests/platform-rbac.yaml
+kubectl apply -f manifests/platform-services.yaml
+kubectl apply -f manifests/platform-policy.yaml
+kubectl apply -f manifests/platform-ingress.yaml
+kubectl apply -f manifests/jaeger.yaml
+kubectl apply -f manifests/prometheus.yaml
 ```
 
 说明：
 
-- 新增 `manifests/services.yaml`，为 10 个微服务提供 ClusterIP Service（`fire-control` 的 Service 在 `fire-control.yaml`），`orchestrator` 可通过服务名访问下游。
+- `manifests/services.yaml` 为 11 个核心服务提供 ClusterIP Service（`fire-control` 的 Service 在 `fire-control.yaml`），并额外提供 `state-store-headless`；平台服务的 Service 在 `platform-services.yaml`。
 - 所有 Deployment 显式设置 `imagePullPolicy: IfNotPresent`，否则 `:latest` 默认 `Always`，会去 Docker Hub 拉取本地导入的 `sim/*` 镜像并失败。
-- `state-store` 保持 3 副本，因此正常运行时应看到 13 个 Pod。
+- `state-store` 保持 3 副本，正常运行时应看到 21 个 Pod：10 个单副本核心服务 + `state-store` 3 副本 + 6 个平台服务 + Jaeger + Prometheus。
 
 ### 验证
 
@@ -186,7 +199,7 @@ kubectl -n sim-test get deploy
 kubectl -n sim-test get pods -o wide
 ```
 
-结果：11 个 Deployment 全部 `Available`，13 个 Pod 全部 `Running`。
+结果：19 个 Deployment 全部 `Available`（17 个服务 + Jaeger + Prometheus），21 个 Pod 全部 `Running`。
 
 内部服务连通性：
 
@@ -227,16 +240,58 @@ sudo -u root python3 wf.py run --config configs/military_fault_detect.yaml --id 
 - `services/common/base.py`：Prometheus 指标名中的 `-` 替换为 `_`。原代码用 `fire-control_requests_total` 这类非法指标名，`prometheus_client` 会在启动时抛 `ValueError`，导致全部微服务崩溃。
 - `services/*/Dockerfile`：增加 `ARG PIP_INDEX_URL`，默认阿里云 PyPI，可通过构建参数覆盖。
 - `manifests/all-services.yaml`、`manifests/fire-control.yaml`：增加 `imagePullPolicy: IfNotPresent`。
-- `manifests/services.yaml`：新增 10 个内部 Service。
+- `manifests/services.yaml`：11 个核心 Service + `state-store-headless`；平台服务在 `platform-services.yaml`。
 - `actions/k8s.py`：`k8s.check_ready` 改为轮询等待（默认 60 秒），并忽略正在删除的 Pod，避免故障注入后误判恢复。
 - `wf.py`：以脚本方式运行时把 `wf` 指向 `__main__`，修复动作注册表分裂导致的 `Action xxx not found`；工作流失败时返回非 0 退出码。
 
 ### 已知限制
 
-- `fault.inject_netem` / `fault.clear_netem` 目前是预留接口，只打印日志，不会真正修改网络。
-- `state-store` 的 3 个副本使用各自进程内存，状态并不共享，做一致性实验时需要替换为共享存储或实现副本同步。
-- `sim-bridge` 已移除 mock 模式，`/start` 会直接运行 ROSS；如果镜像中缺少 `mil_sim`，接口返回 503。故障注入接口当前返回 501，尚未接入运行中的 ROSS。
-- 工作流动作 `ross.start_sim` 目前只记录上下文状态，并未调用 sim-bridge；真实 ROSS 的运行请使用 `scripts/test-ross.sh` 或直接调用 sim-bridge 的 `/start`。
+- `fault.inject_netem` / `fault.clear_netem` 已是真实实现：通过宿主机 `k3s crictl` 找到容器 PID，
+  再 `nsenter -t <pid> -n tc qdisc ...` 注入/清理延迟丢包。因此需要 root、宿主机 `tc`/`nsenter`/
+  `ip`；规则同时写入 `runs/<id>/netem.json`，支持失败后恢复清理。
+- `fault.inject_network_partition` 仍通过 NetworkPolicy 实现；K3S 默认 flannel 不强制执行策略，
+  隔离效果取决于 CNI。需要确定性隔离时用 netem。
+- `state-store` 的 3 个副本已实现 LWW 异步复制 + 无头 Service 对等发现 + 5s 反熵，
+  但仍不是线性一致：写入默认异步推送，单副本写入（`?replicate=0`）会造成可观测分叉，
+  需要 `/sync` 或反熵收敛。适合做一致性实验，不适合当强一致数据库。
+- `sim-bridge` 已移除 mock 模式，`/start` 直接运行真实 ROSS；如果镜像中缺少 `mil_sim`，返回 503。
+  `/inject_fault` 已接入运行中的 ROSS，可注入 `lp_crash` 等故障。
+- 工作流动作 `ross.start_sim` 已通过 `kubectl exec` 真正调用 sim-bridge 的 `/inject_fault`、
+  `/start`、`/status`，并把 `mode=real`、`returncode`、事件数写回 `ctx`；返回码非 0 会让步骤失败。
+- 单节点集群：HPA/PDB 能演示对象与策略，但没有多节点调度和节点故障转移；HPA 未做压测扩容。
+- Jaeger 内存存储、Prometheus `emptyDir`：Pod 重建即清空，长跑需持久化。
+- 故障感知仍是批处理（一次扫描约 10s），证据时刻早不等于结论实时产出。
+
+## 平台服务与治理清单（2026-10-27）
+
+在 11 个核心仿真服务之外，新增 6 个通用平台服务，服务名与镜像 `sim/<name>:latest` 一一对应：
+
+| 服务 | 作用 | 清单 |
+| --- | --- | --- |
+| `api-gateway` | 统一入口、健康聚合、受限反向代理 | `platform-services.yaml` |
+| `auth-service` | HMAC-SHA256 无状态令牌 | 同上 |
+| `config-service` | 版本化配置中心 | 同上 |
+| `notification-service` | 分级通知缓存 | 同上 |
+| `platform-service` | 节点/Pod 身份、cgroup 限额、组件健康 | 同上 |
+| `chaos-service` | 集群内 Pod kill / scale（ServiceAccount `sim-chaos`） | 同上 + `platform-rbac.yaml` |
+
+配套清单：
+
+- `platform-rbac.yaml`：chaos-service 的最小权限 Role/RoleBinding。
+- `platform-policy.yaml`：LimitRange、ResourceQuota、PDB、api-gateway HPA。
+- `platform-ingress.yaml`：Traefik Ingress（`sim-lab.local` -> api-gateway）。
+- `prometheus.yaml`：把 Prometheus 配置纳入仓库，不再依赖手工 `/tmp` 文件。
+
+部署与验证：
+
+```bash
+sudo ./scripts/build-images.sh      # 17 个镜像
+./scripts/deploy.sh                 # 核心 + 平台 + Jaeger/Prometheus
+./scripts/verify_platform.sh        # 期望 PASS=58 FAIL=0
+```
+
+更完整的对象说明、RBAC 权限边界与已知限制见 `docs/K3S-PLATFORM.md`；
+逐项实测输出见 `docs/PLATFORM_AUDIT.md`。
 
 ## Prometheus 可观测性底座部署（2026-10-26）
 
@@ -254,7 +309,7 @@ metrics-server 随 K3S 安装（`kubectl top` 直接可用）；Prometheus 需�
 ### 前置条件
 
 - K3S 正常运行，`kubectl get nodes` 为 `Ready`。
-- 11 个微服务镜像（`sim/*:latest`）已按上一节构建并导入；`manifests/services.yaml` 已 apply，集群内能用服务名互相访问。
+- 17 个服务镜像（`sim/*:latest`）已按上一节构建并导入；核心与平台 Service 已 apply，集群内能用服务名互相访问。
 - **Docker Hub 不可直连**（实测 `curl registry-1.docker.io` 返回 000），因此不能使用官方 `prom/prometheus` 镜像，而是从 GitHub release 下载二进制、再挂到本地已有的 `sim/orchestrator:latest` 基础层上构建。
 - GitHub release 可达（`github.com` 直连正常），`buildah 1.23.1` 已安装。
 
@@ -280,7 +335,8 @@ prometheus, version 2.53.0 (branch: HEAD, revision: 4c35b9250afefede41c5f5acd761
 
 #### 2. 写抓取配置 `/tmp/prometheus.yml`
 
-抓取间隔 5s，静态列出 11 个服务的 `:8080/metrics`：
+抓取间隔 5s。下面是首次接入时的 11 个核心服务示例；当前仓库的
+`manifests/prometheus.yaml` 已扩到 17 个（11 核心 + 6 平台），并以该 ConfigMap 为唯一配置来源：
 
 ```bash
 cat > /tmp/prometheus.yml <<'EOF'
@@ -431,23 +487,20 @@ prometheus-79966c7f6b-847r9   1/1     Running   0          3h25m   10.42.0.62   
 SUCCESS:  Prometheus Server is Healthy.
 
 targets 11 up 11
-
-entity-service:8080 0.1217
-sim-bridge:8080 0.0609
-log-service:8080 0.1217
-fire-control:8080 0.1217
 ```
+> 首次接入时的快照；当前 17 个服务的实测结果为 `targets 17 up 17`
+> （以 `./scripts/verify_platform.sh` 为准）。
 
 Service：`prometheus   ClusterIP   10.43.210.49   <none>   9090/TCP   app=prometheus`
 
-请求率数值随业务流量变化（无流量时接近 0），`targets 11 up 11` 才是判断部署成功的硬指标。
+请求率数值随业务流量变化（无流量时接近 0），`targets 17 up 17` 才是当前判断部署成功的硬指标。
 
 #### 7. 集群外查看 UI / 执行 PromQL
 
 ```bash
 kubectl -n sim-test port-forward svc/prometheus 9090:9090
 # 浏览器打开 http://localhost:9090
-#   /targets —— 查看 11 个 target 的抓取状态与 last scrape 时间
+#   /targets —— 查看 17 个 target 的抓取状态与 last scrape 时间
 #   /graph   —— 直接跑 PromQL，例如 rate(fire_control_requests_total[2m])
 ```
 
@@ -462,7 +515,7 @@ kubectl -n sim-test port-forward svc/prometheus 9090:9090
 
 - **Docker Hub 不可达**：`docker.io/prom/prometheus` 拉不到。必须走"GitHub 下载二进制 + buildah 挂到 `sim/orchestrator:latest`"这条路。
 - **`:latest` 默认 `imagePullPolicy: Always`**：不带 `IfNotPresent` 时 Pod 进 `ImagePullBackOff`，去 Docker Hub 拉 `sim/prometheus:latest` 必然失败。
-- **`buildah config --entrypoint` 不足以让 Pod 跑对进程**：基础镜像 `sim/orchestrator:latest` 自带 `CMD python app.py`，Deployment 未指定 `command` 时会继续跑 orchestrator 的 uvicorn，`/api/v1/targets` 返回 404，日志里看到的是 orchestrator 的启动输出。必须在 Deployment 里用 `command` + `args` 显式覆盖（这也是 `fix_prometheus.py` 存在的原因：`deploy_prometheus.py` 里的首版清单缺这两项）。
+- **`buildah config --entrypoint` 不足以让 Pod 跑对进程**：基础镜像 `sim/orchestrator:latest` 自带 `CMD python app.py`，Deployment 未指定 `command` 时会继续跑 orchestrator 的 uvicorn，`/api/v1/targets` 返回 404，日志里看到的是 orchestrator 的启动输出。必须在 Deployment 里用 `command` + `args` 显式覆盖。
 - **`docker-archive` 不能覆盖已存在的 tar**：`buildah push ... docker-archive:/tmp/prom_img.tar` 在文件已存在时报错，push 前先 `rm -f`。
 - **存储是 `emptyDir` + `retention 2h`**：Pod 重建即清空、只留 2 小时数据，做 48h 长跑要换 PVC（`local-path` StorageClass 已随 K3S 提供）。
 - **抓取窗口**：`scrape_interval: 5s`，配套 PromQL 用 `[2m]`（24 个样本）算 `rate`，窗口过短（如 `[30s]`）在服务稀疏请求下会大量返回空值。
@@ -486,7 +539,9 @@ k3s ctr -n k8s.io images rm docker.io/sim/prometheus:latest
 ### 前置条件
 
 - 同 Prometheus 一节：buildah 可用、`sim/orchestrator:latest` 已导入（作基础层）、GitHub release 可达、Docker Hub 不可达。
-- 11 个微服务镜像须是 **2026-10-26 之后** 用 `rebuild_services.py` 或 `build-images.sh` 重建的版本（包含 `services/common/tracing.py`），旧镜像不会上报任何 span。
+- 17 个服务镜像须是包含 `services/common/tracing.py` 的版本，旧镜像不会上报任何 span。
+  改动 `common/` 后必须用 `sudo ./scripts/build-images.sh <服务名...>` 重建并执行
+  `./scripts/deploy.sh`；仓库没有热补丁脚本。
 
 ### 步骤
 
@@ -580,8 +635,10 @@ svcs = json.loads(urllib.request.urlopen("http://jaeger:16686/api/services", tim
 print("selfcheck visible:", "otlp-selfcheck" in svcs)
 PY
 
-# d) 端到端：触发一次真实业务链路，看完整 trace
-python scripts/verify_tracing.py   # 本机执行；期望 39 span / 4 层 / 16 条运行态边
+# d) 端到端：平台自检 + 真实业务链路
+./scripts/verify_platform.sh        # 期望 PASS=58 FAIL=0
+python wf.py run --config configs/tracing_pipeline.yaml --id trace-check
+# trace.verify 期望 ok=True，运行态依赖边覆盖率 1.0
 ```
 
 实测结果：
@@ -592,19 +649,22 @@ jaeger-696c7bc5d9-p5ffb   1/1     Running   0          13h   10.42.0.115   ubu-2
 
 jaeger   ClusterIP   10.43.251.211   <none>   16686/TCP,4318/TCP,4317/TCP,14268/TCP   app=jaeger
 
-services: ['log-service', 'state-store', 'scenario-mgr', 'orchestrator', 'comms-service',
-           'fire-control', 'sensor-service', 'env-service', 'entity-service', 'telemetry-gw',
-           'sim-bridge', 'jaeger-all-in-one', 'otlp-selfcheck']
+services: ['scenario-mgr', 'comms-service', 'env-service', 'platform-service',
+           'fire-control', 'auth-service', 'chaos-service', 'state-store',
+           'notification-service', 'config-service', 'sim-bridge', 'jaeger-all-in-one',
+           'api-gateway', 'orchestrator', 'entity-service', 'sensor-service',
+           'telemetry-gw', 'log-service']
 ```
 
-（`jaeger-all-in-one` 与 `otlp-selfcheck` 是自检产生的假服务名，属正常现象；重启 Jaeger 后消失。）
+（`jaeger-all-in-one` 是 Jaeger 自身的服务名，属正常现象。当前共 18 个服务 =
+17 个业务服务 + Jaeger 自身。）
 
 #### 5. 集群外查看 UI
 
 ```bash
 kubectl -n sim-test port-forward svc/jaeger 16686:16686
 # 浏览器打开 http://localhost:16686
-# Service 选 orchestrator → Find Traces，可看到 39 span 的完整调用树；
+# Service 选 orchestrator → Find Traces，可看到一次 /trigger 的完整调用树；
 # span 的 peer.service 标签直接指认被调用的下游，是根因定位的关键证据。
 ```
 
@@ -627,7 +687,7 @@ kubectl -n sim-test port-forward svc/jaeger 16686:16686
 - Prometheus 一节的坑全部适用：`:latest` 必须 `IfNotPresent`；`command`+`args` 必须显式覆盖基础镜像 CMD；`docker-archive` 前先 `rm -f`；GitHub 大包下载易断，用 `curl -C -` 续传 + `gzip -t` 校验（实测 jaeger.tar.gz 曾下到一半截断）。
 - **Jaeger 1.57 的 Query API 结构**：`serviceName` 在 `trace.processes[processID].serviceName`，**不在** `span.process`（按 OTel 习惯读 `span.process` 会得到 `None`，所有 span 归到 `?`）。`actions/trace.py` 已按 1.57 结构解析；升级 Jaeger 大版本时注意这里。
 - **`/metrics` 噪声**：Prometheus 每 5s 抓一次各服务，每次都会生成一条单 span 的"根 trace"，把业务链路挤出查询窗口。`tracing.py` 的中间件已跳过 `/metrics` 与 `/tracez` 等路径，新增抓取类路径时记得同步进 `_SKIP_PATHS`。
-- **多服务查询要去重**：`/api/traces?service=A&service=B` 返回的 trace 有重叠，`actions/trace.py` 按 `traceID` 去重，否则 span 数虚高约 11 倍。
+- **多服务查询要去重**：`/api/traces?service=A&service=B` 返回的 trace 有重叠，`actions/trace.py` 按 `traceID` 去重，否则 span 数虚高约 17 倍。
 - **统计调用边要两遍扫描**：先登记全部 `spanID -> serviceName`，再扫父子引用，否则子 span 先出现时丢边。
 - **内存存储**：`SPAN_STORAGE_TYPE=memory` + `--memory.max-traces=20000`，Pod 重启即清空、上限 2 万条。想清空 trace 直接 `kubectl -n sim-test rollout restart deploy/jaeger`；48h 长跑需换 badger/Cassandra 存储。
 - **OTLP JSON 收口**：Jaeger 1.57 的 `/v1/traces` 接受 `application/json` 的 OTLP JSON（无需 protobuf），这正是纯标准库 SDK 能零依赖工作的前提。
@@ -651,7 +711,7 @@ k3s ctr -n k8s.io images rm docker.io/sim/jaeger:latest
 - 运行 `mil_sim` 的 MPI 运行库也已装进同一个镜像；
 - sim-bridge 通过子进程启动 `mil_sim`，再通过 HTTP 暴露启动/状态查询接口。
 
-这样 K8S 中仍然只有 11 个微服务镜像，sim-bridge 是唯一与 ROSS 相关的镜像。
+这样 K8S 中仍然是 17 个服务镜像，sim-bridge 是唯一与 ROSS 相关的镜像。
 
 ### 镜像构建方式
 

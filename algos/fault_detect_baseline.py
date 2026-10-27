@@ -77,10 +77,12 @@ def detect(ctx):
     result = {
         "detected": detected,
         "detected_at": detected_at,
+        "detection_signal": "k8s_readiness" if detected else None,
         "faulty_service": target,
         "confidence": confidence,
         "method": "k8s_pod_readiness_polling",
         "evidence": evidence,
+        "detect_invoked_at": t0,
         "scan_duration_s": round(time.time() - t0, 3),
     }
     print(f"[ALGO_BASELINE] detection result: {result}")

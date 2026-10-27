@@ -1,0 +1,21 @@
+# 通过 K3S 自带的 Traefik 暴露 API 网关（默认 ingressClassName: traefik）
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sim-api-gateway
+  namespace: sim-test
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: sim-lab.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: api-gateway
+            port:
+              number: 8080

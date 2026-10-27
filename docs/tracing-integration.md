@@ -1,7 +1,7 @@
 # 链路追踪接入（Jaeger）——从拓扑图到真实 Trace
 
 > 目标：让"基于链路追踪的故障感知"有真实数据支撑，而不是一张手画的调用图。
-> 环境：K3S 1.36 / namespace `sim-test` / 11 个 FastAPI 微服务。
+> 环境：K3S 1.36 / namespace `sim-test` / 17 个 FastAPI 微服务（11 核心 + 6 平台）。
 
 ## 1. 结论
 
@@ -43,12 +43,13 @@
 | --- | --- |
 | `services/common/tracing.py` | 追踪 SDK：`traceparent` 解析/注入、`Span`、ASGI 中间件、OTLP 导出器（纯标准库，零第三方依赖） |
 | `services/common/base.py` | 所有服务统一的 `create_app()` 挂中间件；新增 `/tracez` 自检端点 |
-| `deploy_jaeger.py` / `manifests/jaeger.yaml` | 部署 Jaeger（all-in-one，内存存储 2 万条 trace） |
-| `rebuild_services.py` | 把 `common/` 与改动过的 `app.py` 热补丁进 11 个镜像（不重新 pip install，约 2.5 分钟） |
+| `manifests/jaeger.yaml` | 部署 Jaeger（all-in-one，内存存储 2 万条 trace）；由 `scripts/deploy.sh` 一并 apply |
+| `scripts/build-images.sh` | 构建 17 个服务镜像并导入 containerd；改动 `common/` 后必须重建，不能只热补丁 |
+| `scripts/deploy.sh` | apply 核心/平台/可观测性清单并等待滚动更新（`OBSERVABILITY=0` 可跳过 Jaeger/Prometheus） |
 | `actions/trace.py` | `trace.collect` / `trace.graph` / `trace.verify` / `traffic.probe` |
 | `configs/tracing_pipeline.yaml` | 链路追踪验证工作流 |
 | `configs/ab_baseline.yaml` / `ab_trace.yaml` | 感知 A/B（同流量、同注入时序，只换算法） |
-| `scripts/verify_tracing.py`、`scripts/podpy.py` | 端到端自检 / 在 Pod 内跑脚本 |
+| `scripts/verify_platform.sh` | 平台级端到端自检：端点、`/trigger`、状态副本、Jaeger/Prometheus 一次覆盖 |
 
 ## 3. 关键实现
 
@@ -75,24 +76,33 @@ orchestrator ─┬─ scenario-mgr ─┬─ state-store
 **服务名解析**：Jaeger 1.57 的 `/api/traces` 把 process 放在 `trace.processes[processID]` 里，不在 span 上；
 采集时两处都兼容（`processID → processes[].serviceName`，回退 `span.process.serviceName`）。
 
-## 4. 真实数据（`trace-001` / `ab-trace-001`）
+## 4. 真实数据（`verify-trace-002`）
 
-```
-[TRACE] traces=16 spans=499 edges=16 coverage=1.0
+最近一次完整验证（2026-10-27）：
+
+```text
+[TRACE] traces=213 spans=1306 edges=17 coverage=1.0
+[TRACE] verify: jaeger_services=18 trace_count=54 span_total=837 ok=True
 [TRACE] runtime graph (from real spans):
-        fire-control   -> comms-service, sensor-service
-        orchestrator   -> comms-service, entity-service, env-service, fire-control,
-                          log-service, scenario-mgr, sensor-service, sim-bridge,
-                          state-store, telemetry-gw
-        scenario-mgr   -> log-service, state-store
+        orchestrator   -> scenario-mgr, entity-service, comms-service, sensor-service,
+                          fire-control, env-service, log-service, state-store,
+                          telemetry-gw, sim-bridge
+        scenario-mgr   -> state-store, log-service
         sensor-service -> entity-service, env-service
+        fire-control   -> sensor-service, comms-service
+        api-gateway    -> sensor-service
 [TRACE] edge coverage = 1.0
 ```
 
-- 16 条边全部由真实 span 推导，与设计态拓扑一致（coverage = 1.0）
-- 服务级 p95（正常态）：entity 4.0ms / comms 5.4ms / sensor 13.4ms / scenario-mgr 14.4ms /
-  fire-control 22.4ms / orchestrator 96.8ms
-- 故障态出现 `failed_peers={'fire-control': 3}`：3 个失败 span 的 `peer.service` 指向 fire-control
+- 17 条边全部由真实 span 推导，覆盖设计态拓扑；`api-gateway -> sensor-service`
+  是网关代理产生的真实平台链路。
+- 服务级 p95：该查询窗口包含前序故障/弱网实验的慢请求，entity 4.2ms / comms 6.7ms /
+  sensor 16.2ms / fire-control 32.3ms，而 scenario-mgr 610.6ms、orchestrator 412.9ms
+  被故障窗口拉高。无故障的 `trace-001` 正常态 p95 为 entity 3.1ms / comms 4.9ms /
+  sensor 12.2ms / scenario-mgr 15.4ms / fire-control 23.5ms / orchestrator 96.4ms。
+- 故障态出现 `failed_peers={'fire-control': 3}`：3 个失败 span 的 `peer.service` 指向 fire-control。
+- 更早一次 `trace-001` 的 16 条边 / 499 span 结果仍可在 `runs/` 中查到；服务扩到 17 个后，
+  边数增加到 17（新增网关链路）。
 
 ## 5. 算法改造（`algos/fault_detect_dl.py`）
 
@@ -104,6 +114,9 @@ orchestrator ─┬─ scenario-mgr ─┬─ state-store
    - 否则 0.05
 4. **感知时刻**：取 `min(首次未就绪, 首个错误 span 时刻)`。错误 span 记在调用方身上，
    所以凡是有错误 span 的服务都参与比较——否则会把 0.6s 的证据漏掉，退化成"算法跑完的时刻"。
+   Jaeger 1.57 忽略 `lookback`，因此 `actions/trace.py` 显式传 `start`/`end` 微秒时间戳，
+   `fault_detect_dl.py` 从 `inject_time - 2s` 开始查询并按 `[window_start, window_end]`
+   严格过滤，避免历史错误把感知时刻推到注入之前（负延迟）。
 5. **影响面**：沿传播图 BFS，输出受影响的异常服务与跳数（`impacted_services`）。
 6. **阈值**：`max(med + 3·1.4826·MAD, 2.5·med, 0.01)`。只用 MAD 时中位数极小的场景会把
    "0.006 vs 0.0055"判成异常，噪声服务（log-service/telemetry-gw）反而干扰根因排序。
@@ -121,6 +134,11 @@ orchestrator ─┬─ scenario-mgr ─┬─ state-store
 
 > 基线之所以慢：pod-kill 后 Pod 约 3~5s 就被重建为 Ready，500ms 一次的轮询窗口落空，
 > 最后靠"Pod 名字变了"这一兜底事件才发现。链路证据是"业务真的失败"的时刻，不受自愈速度影响。
+
+> 2026-10-27 复测（`verify-algo-002` / `verify-detect-002`）：深度学习 + Trace 的证据延迟
+> **+0.935 s**、根因 `fire-control`、置信度 0.977；基线 `k8s_readiness` 为 **216.4 ms**。
+> 注意深度学习路径一次扫描约 10.1s、端到端 17.3s，证据时刻早不代表结论实时产出；
+> 真实数值与口径见 `docs/PLATFORM_AUDIT.md`。
 
 ## 7. 局限与后续
 

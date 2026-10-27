@@ -1,0 +1,104 @@
+# 指标采集：Prometheus 抓取全部仿真服务与平台服务（此前仅存在于运行集群，未纳入仓库）
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: sim-test
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 5s
+      evaluation_interval: 5s
+    scrape_configs:
+      - job_name: 'sim-core'
+        metrics_path: /metrics
+        static_configs:
+          - targets:
+            - orchestrator:8080
+            - scenario-mgr:8080
+            - entity-service:8080
+            - comms-service:8080
+            - sensor-service:8080
+            - fire-control:8080
+            - env-service:8080
+            - log-service:8080
+            - state-store:8080
+            - telemetry-gw:8080
+            - sim-bridge:8080
+      - job_name: 'sim-platform'
+        metrics_path: /metrics
+        static_configs:
+          - targets:
+            - api-gateway:8080
+            - auth-service:8080
+            - config-service:8080
+            - notification-service:8080
+            - platform-service:8080
+            - chaos-service:8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: sim-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+        tier: observability
+    spec:
+      containers:
+      - name: prometheus
+        image: sim/prometheus:latest
+        imagePullPolicy: IfNotPresent
+        command: ["/usr/local/bin/prometheus"]
+        args:
+        - --config.file=/etc/prometheus/prometheus.yml
+        - --storage.tsdb.path=/prometheus
+        - --storage.tsdb.retention.time=2h
+        ports:
+        - containerPort: 9090
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+          readOnly: true
+        - name: data
+          mountPath: /prometheus
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        readinessProbe:
+          httpGet: {path: /-/ready, port: 9090}
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet: {path: /-/healthy, port: 9090}
+          initialDelaySeconds: 15
+          periodSeconds: 20
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-config
+      - name: data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: sim-test
+spec:
+  selector:
+    app: prometheus
+  ports:
+  - port: 9090
+    targetPort: 9090

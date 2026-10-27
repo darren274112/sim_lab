@@ -2,7 +2,7 @@
 
 基于ROSS（Rensselaer's Optimistic Simulation System）的真实离散事件仿真。
 
-## 场景：营级进攻战斗（Battalion Attack）
+## 场景：营级进攻战斗
 
 模拟蓝军营对红军防御阵地的进攻：
 - 蓝军：坦克连、步兵连、炮兵连（共12个单位）

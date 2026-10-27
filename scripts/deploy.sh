@@ -10,7 +10,15 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 NAMESPACE="${NAMESPACE:-sim-test}"
-WAIT_TIMEOUT="${WAIT_TIMEOUT:-180s}"
+WAIT_TIMEOUT="${WAIT_TIMEOUT:-240s}"
+# 设为 0 可跳过 Jaeger / Prometheus（例如本地未导入这两个镜像时）
+OBSERVABILITY="${OBSERVABILITY:-1}"
+
+SERVICES=(
+  orchestrator scenario-mgr entity-service comms-service sensor-service
+  fire-control env-service log-service state-store telemetry-gw sim-bridge
+  api-gateway auth-service config-service notification-service platform-service chaos-service
+)
 
 if ! command -v kubectl >/dev/null 2>&1; then
   echo "ERROR: 未找到 kubectl" >&2
@@ -31,8 +39,7 @@ if command -v k3s >/dev/null 2>&1; then
   fi
   mapfile -t local_images < <("${K3S_CTR[@]}" -n k8s.io images ls -q)
   missing=0
-  for svc in orchestrator scenario-mgr entity-service comms-service sensor-service \
-             fire-control env-service log-service state-store telemetry-gw sim-bridge; do
+  for svc in "${SERVICES[@]}"; do
     if ! printf '%s\n' "${local_images[@]}" | grep -q "docker.io/sim/${svc}:latest"; then
       echo "缺少镜像: sim/${svc}:latest"
       missing=1
@@ -44,11 +51,23 @@ if command -v k3s >/dev/null 2>&1; then
   fi
 fi
 
-echo "==> 部署命名空间与微服务"
+echo "==> 部署命名空间与核心微服务"
 kubectl apply -f manifests/namespace.yaml
 kubectl apply -f manifests/all-services.yaml
 kubectl apply -f manifests/fire-control.yaml
 kubectl apply -f manifests/services.yaml
+
+echo "==> 部署平台服务（RBAC / 服务 / 治理策略 / Ingress）"
+kubectl apply -f manifests/platform-rbac.yaml
+kubectl apply -f manifests/platform-services.yaml
+kubectl apply -f manifests/platform-policy.yaml
+kubectl apply -f manifests/platform-ingress.yaml
+
+if [[ "$OBSERVABILITY" == "1" ]]; then
+  echo "==> 部署可观测性组件（Jaeger / Prometheus）"
+  [[ -f manifests/jaeger.yaml ]] && kubectl apply -f manifests/jaeger.yaml
+  [[ -f manifests/prometheus.yaml ]] && kubectl apply -f manifests/prometheus.yaml
+fi
 
 # 镜像 tag 固定为 latest，重新构建后需要重启 Deployment 才会使用新镜像
 if [[ "${RESTART:-1}" == "1" ]]; then

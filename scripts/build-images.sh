@@ -2,7 +2,7 @@
 # 构建仿真微服务镜像并导入 K3S（containerd）
 #
 # 用法:
-#   sudo ./scripts/build-images.sh                  # 构建全部 11 个服务
+#   sudo ./scripts/build-images.sh                  # 构建全部服务（11 核心 + 6 平台）
 #   sudo ./scripts/build-images.sh fire-control     # 只构建指定服务
 #   IMAGE_TAG=dev sudo ./scripts/build-images.sh    # 自定义镜像 tag
 #   IMPORT=0 sudo ./scripts/build-images.sh         # 只构建，不导入 K3S
@@ -25,6 +25,13 @@ SERVICES=(
   state-store
   telemetry-gw
   sim-bridge
+  # 通用平台服务
+  api-gateway
+  auth-service
+  config-service
+  notification-service
+  platform-service
+  chaos-service
 )
 
 IMAGE_PREFIX="${IMAGE_PREFIX:-sim}"

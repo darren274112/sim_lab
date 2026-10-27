@@ -39,18 +39,35 @@ def _avg_cluster_cpu(namespace):
 
 
 def _probe_rtt(namespace, svc="state-store"):
-    """真实 RTT 探针：在集群内对目标服务 healthz 计时（数据面往返时延）"""
+    """真实 RTT 探针：在集群内对目标服务 healthz 计时（数据面往返时延）。
+
+    弱网（延迟 + 丢包）下单次请求可能超时，因此连续探测 3 次取最小值；
+    全部失败才回退到 0.05s，并通过 rtt_source 明确标注，避免把回退值
+    当成真实测量结果写进决策依据。
+    """
     try:
         script = ("import urllib.request,time\n"
-                  "t=time.time()\n"
-                  "urllib.request.urlopen('http://%s:8080/healthz',timeout=3).read()\n"
-                  "print('%.4f'%%(time.time()-t))" % svc)
+                  "vals=[]\n"
+                  "for _ in range(3):\n"
+                  "    t=time.time()\n"
+                  "    try:\n"
+                  f"        urllib.request.urlopen('http://{svc}:8080/healthz',timeout=2).read()\n"
+                  "        vals.append(time.time()-t)\n"
+                  "    except Exception:\n"
+                  "        pass\n"
+                  "print(' '.join('%.4f' % v for v in vals) or 'none')\n")
         r = subprocess.run(
             ["kubectl", "-n", namespace, "exec", "-i", "deploy/orchestrator", "--", "python", "-"],
-            input=script, capture_output=True, text=True, timeout=15)
-        return float(r.stdout.strip().splitlines()[-1]) if r.returncode == 0 else 0.05
+            input=script, capture_output=True, text=True, timeout=20)
+        if r.returncode != 0:
+            return 0.05, [], "fallback"
+        line = (r.stdout.strip().splitlines() or ["none"])[-1]
+        samples = [float(x) for x in line.split() if x != "none"]
+        if samples:
+            return min(samples), samples, "probe"
+        return 0.05, [], "fallback"
     except Exception:
-        return 0.05
+        return 0.05, [], "fallback"
 
 
 def _total_request_rate(namespace):
@@ -167,7 +184,7 @@ def consist(ctx):
 
     # (1) 监控
     avg_cpu = _avg_cluster_cpu(namespace)
-    rtt = _probe_rtt(namespace)
+    rtt, rtt_samples, rtt_source = _probe_rtt(namespace)
     req_rate = _total_request_rate(namespace)
 
     delay_norm = min(1.0, rtt / 0.2)
@@ -175,6 +192,11 @@ def consist(ctx):
 
     # (2) 事件触发
     events, down_services = _event_triggers(namespace, delay_norm, load_norm, req_rate)
+    # 真实副本分叉也是事件：来自 state.verify 的实际快照对比，而不是推测
+    state_verify = ctx.get("state_verify") or {}
+    divergent_keys = state_verify.get("divergent_keys") or []
+    if divergent_keys:
+        events.append("state_divergence")
     state = "TRIGGERED" if events else "NORMAL"
 
     # (3) 模糊-排队协同调参
@@ -200,6 +222,13 @@ def consist(ctx):
     if "data_update_burst" in events:
         sync_interval = min(sync_interval, 0.20)
         event_adjustments.append("data_update_burst -> sync_interval capped at 0.20s")
+    if "state_divergence" in events:
+        # 已观测到副本分叉：立即收紧同步间隔并提高一致性强度，驱动反熵修复
+        sync_interval = min(sync_interval, 0.10)
+        consistency_strength = max(consistency_strength, 0.85)
+        timeout_ms = max(timeout_ms, 250.0)
+        event_adjustments.append(
+            f"state_divergence({','.join(divergent_keys)}) -> sync<=0.10s, strength>=0.85")
 
     # 排队论：到达率=数据更新频率(近似请求率)，服务率=同步容量(随可用 CPU 提升)
     service_rate = max(5.0, 50.0 * (1.0 - load_norm))
@@ -218,6 +247,8 @@ def consist(ctx):
         "monitor": {
             "avg_cluster_cpu_m": round(avg_cpu, 1),
             "rtt_s": round(rtt, 4),
+            "rtt_source": rtt_source,
+            "rtt_samples_s": [round(v, 4) for v in rtt_samples],
             "total_request_rate": round(req_rate, 4),
             "delay_norm": round(delay_norm, 3),
             "load_norm": round(load_norm, 3),
@@ -233,11 +264,19 @@ def consist(ctx):
         "base_fuzzy_params": base_params,
         "event_adjustments": event_adjustments,
         "faulty_services": down_services,
+        "state_consistency": {
+            "observed_consistent": state_verify.get("consistent"),
+            "divergent_keys": divergent_keys,
+            "replicas": len(state_verify.get("replicas") or []),
+        },
         "decision_time": time.time(),
         "adapt_duration_s": round(time.time() - t0, 3),
     }
     print(f"[ALGO_FUZZY] state={state} level={level} sync_interval={sync_interval:.3f}s "
-          f"events={events} mm1_wait={q.get('wait_s')} rtt={rtt:.4f}s cpu_avg={avg_cpu:.0f}m")
+          f"events={events} mm1_wait={q.get('wait_s')} rtt={rtt:.4f}s "
+          f"source={rtt_source} cpu_avg={avg_cpu:.0f}m")
+    if rtt_source != "probe":
+        print("[ALGO_FUZZY] WARNING: RTT 探测全部失败，使用回退值 0.05s（结果中 rtt_source=fallback）")
     if event_adjustments:
         print(f"[ALGO_FUZZY] 事件驱动调整: {event_adjustments}")
     print("[ALGO_FUZZY] 决策曲面 (delay,load)->interval/level:")
@@ -253,5 +292,7 @@ def consist(ctx):
         "consistency_strength": round(consistency_strength, 3),
         "event_adjustments": event_adjustments,
         "mm1_wait_s": q.get("wait_s"),
+        "observed_divergent_keys": divergent_keys,
+        "observed_consistent": state_verify.get("consistent"),
     }
     return result

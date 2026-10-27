@@ -61,6 +61,8 @@ BASE = __BASE__
 SERVICES = __SERVICES__
 LIMIT = __LIMIT__
 LOOKBACK = __LOOKBACK__
+WINDOW_START = __WINDOW_START__
+WINDOW_END = __WINDOW_END__
 
 def get(path):
     return json.loads(urllib.request.urlopen(BASE + path, timeout=15).read().decode())
@@ -87,10 +89,15 @@ def span_service(sp, procs):
 
 # 按 traceID 去重：多个服务查到的往往是同一条 trace，重复累加会把 span 数虚高
 trace_map = {}
+# Jaeger 1.57 的 /api/traces 在本环境会忽略 lookback 参数（实测仍返回数小时前
+# 的 trace），因此显式传 start/end（微秒时间戳），并在聚合阶段按窗口过滤 span。
+# 旧实现用 lookback 导致历史错误 span 被当作本次故障证据，感知延迟出现负值。
 for svc in SERVICES:
     if svc not in known:
         continue
-    q = "/api/traces?service=%s&limit=%d&lookback=%ds" % (urllib.parse.quote(svc), LIMIT, LOOKBACK)
+    q = "/api/traces?service=%s&limit=%d&start=%d&end=%d" % (
+        urllib.parse.quote(svc), LIMIT,
+        int(WINDOW_START * 1e6), int(WINDOW_END * 1e6))
     try:
         data = get(q)["data"]
     except Exception:
@@ -109,11 +116,19 @@ for tr in traces:
     for sp in tr.get("spans", []):
         span_svc[sp.get("spanID")] = span_service(sp, procs) or "?"
 
-# 第二遍：耗时 / 错误 / 操作 / 调用边
+# 第二遍：耗时 / 错误 / 操作 / 调用边（严格按窗口过滤，避免历史 span 污染）
 for tr in traces:
     procs = tr.get("processes") or {}
-    trace_ids.add(tr.get("traceID"))
+    in_window_spans = []
     for sp in tr.get("spans", []):
+        ts = sp.get("startTime", 0) / 1e6  # 微秒 -> 秒
+        if ts < WINDOW_START or ts > WINDOW_END:
+            continue
+        in_window_spans.append((sp, ts))
+    if not in_window_spans:
+        continue
+    trace_ids.add(tr.get("traceID"))
+    for sp, ts in in_window_spans:
         span_total += 1
         svc = span_svc.get(sp.get("spanID")) or span_service(sp, procs) or "?"
         tags = {t.get("key"): t.get("value") for t in (sp.get("tags") or [])}
@@ -127,7 +142,6 @@ for tr in traces:
                or code >= 500)
         if bad:
             errs[svc] = errs.get(svc, 0) + 1
-            ts = sp.get("startTime", 0) / 1e6  # 微秒 -> 秒
             err_first[svc] = min(err_first.get(svc, 1e18), ts)
             err_last[svc] = max(err_last.get(svc, 0), ts)
             peer = tags.get("peer.service")
@@ -170,18 +184,31 @@ result["trace_ids"] = sorted(trace_ids)[-40:]
 result["trace_count"] = len(trace_ids)
 result["span_total"] = span_total
 result["lookback_s"] = LOOKBACK
+result["window_start"] = WINDOW_START
+result["window_end"] = WINDOW_END
 result["jaeger_services"] = known
 print(json.dumps(result))
 '''
 
 
-def collect_once(namespace=NAMESPACE_DEFAULT, lookback_s=3600, limit=100):
-    """查询 Jaeger 并聚合出服务级链路指标 + 运行态调用边"""
+def collect_once(namespace=NAMESPACE_DEFAULT, lookback_s=3600, limit=100, since=None):
+    """查询 Jaeger 并聚合出服务级链路指标 + 运行态调用边
+
+    since: 可选的绝对起始时间戳（秒）。用于故障窗口查询：窗口起点取
+           max(now - lookback_s, since)，确保不会把窗口前的历史错误算进本次故障。
+    """
+    now = time.time()
+    window_start = now - max(1, int(lookback_s))
+    if since is not None:
+        window_start = max(window_start, float(since))
+    window_end = now
     script = (_AGG_SCRIPT
               .replace("__BASE__", repr(JAEGER_BASE))
               .replace("__SERVICES__", repr(SIM_SERVICES))
               .replace("__LIMIT__", str(limit))
-              .replace("__LOOKBACK__", str(int(lookback_s))))
+              .replace("__LOOKBACK__", str(int(lookback_s)))
+              .replace("__WINDOW_START__", repr(float(window_start)))
+              .replace("__WINDOW_END__", repr(float(window_end))))
     return _exec_py(script, namespace)
 
 
@@ -226,10 +253,11 @@ def collect(ctx, params):
     # 默认回看窗口：注入时刻 - 60s 起（实验关心故障窗口内的链路），最多 30 分钟
     lookback = int(params.get("lookback_s", 900))
     limit = int(params.get("limit", 120))
+    since = params.get("since")
 
-    print(f"[TRACE] querying Jaeger ({JAEGER_BASE}) lookback={lookback}s limit={limit}")
+    print(f"[TRACE] querying Jaeger ({JAEGER_BASE}) lookback={lookback}s limit={limit} since={since}")
     t0 = time.time()
-    agg = collect_once(namespace, lookback, limit)
+    agg = collect_once(namespace, lookback, limit, since=since)
     if agg.get("error"):
         print(f"[TRACE] collection failed: {agg['error']}")
         ctx["trace_stats"] = {"available": False, "error": agg["error"]}
@@ -250,6 +278,8 @@ def collect(ctx, params):
         "runtime_graph": g,
         "graph_diff": diff,
         "lookback_s": agg.get("lookback_s"),
+        "window_start": agg.get("window_start"),
+        "window_end": agg.get("window_end"),
         "timestamp": time.time(),
     }
     ctx["trace_stats"] = stats

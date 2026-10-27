@@ -54,16 +54,19 @@ def _build_prop_graph(dep_graph):
     return prop
 
 
-def _trace_evidence(namespace, lookback_s=600, limit=120):
+def _trace_evidence(namespace, lookback_s=600, limit=120, since=None):
     """从 Jaeger 取真实 Trace：服务级 span 指标 + 运行态依赖图 + 失败调用对端。
 
     这是"链路追踪"在感知里的作用点：
       - graph：定位时用真实拓扑而不是人工声明的边；
       - failed_peers：调用失败 span 上的 peer.service，直接指认故障服务；
       - first_error_at：故障在链路上首次暴露的时刻，可作为感知时刻的更早证据。
+
+    since：故障注入时刻（秒）。窗口不早于该时刻，避免把注入前的历史错误
+           当成这次故障的证据（否则会出现负的感知延迟）。
     """
     try:
-        agg = trace_collect(namespace, lookback_s, limit)
+        agg = trace_collect(namespace, lookback_s, limit, since=since)
     except Exception as e:
         return {"available": False, "error": f"{type(e).__name__}: {e}"[:200]}
     if agg.get("error"):
@@ -83,6 +86,8 @@ def _trace_evidence(namespace, lookback_s=600, limit=120):
         "graph_edges": len(edges),
         "trace_count": agg.get("trace_count", 0),
         "span_total": agg.get("span_total", 0),
+        "window_start": agg.get("window_start"),
+        "window_end": agg.get("window_end"),
         "sample_trace_ids": agg.get("trace_ids", [])[-5:],
     }
 
@@ -437,7 +442,13 @@ def detect(ctx):
     #     先查 trace 再做 K8S 轮询：trace 是"已经发生的事实"，不依赖后续采样，
     #     而且一次批量查询只要亚秒级，用它决定后面还要不要慢速轮询。
     lookback = int((ctx.get("vars") or {}).get("trace_lookback_s", 900))
-    trace = _trace_evidence(namespace, lookback_s=lookback)
+    inject_time = ctx.get("inject_time") or (ctx.get("fault_info") or {}).get("time")
+    # 故障窗口起点：注入前 2s（留出探测请求发出到失败 span 落库的抖动），
+    # 绝不回看到注入前的历史错误。
+    trace_since = (float(inject_time) - 2.0) if inject_time else None
+    trace = _trace_evidence(namespace, lookback_s=lookback, since=trace_since)
+    if trace_since:
+        print(f"[ALGO_DL] trace window since={trace_since:.3f} (inject_time={inject_time:.3f})")
     dep_graph = trace.get("graph") or STATIC_DEP_GRAPH
     prop_graph = _build_prop_graph(dep_graph)
     trace_services = trace.get("services") or {}
@@ -561,10 +572,19 @@ def detect(ctx):
     observed = [(ts, "k8s_readiness") for svc, ts in first_unready.items() if svc in anomalous]
     for svc, v in trace_services.items():
         ts = v.get("first_error_at")
-        if ts and (svc in suspects or (v.get("error_count") or 0) > 0):
+        if not ts:
+            continue
+        # 双保险：即使上游查询窗口过滤有偏差，也不接受注入前的错误时刻
+        if trace_since is not None and ts < trace_since:
+            continue
+        if svc in suspects or (v.get("error_count") or 0) > 0:
             observed.append((ts, "trace_error"))
     if detected and observed:
         detected_at, detection_signal = min(observed, key=lambda x: x[0])
+        # 感知不可能早于注入：异常但证据时刻异常时回退到当前时刻
+        if inject_time and detected_at < float(inject_time):
+            detected_at = time.time()
+            detection_signal = detection_signal + "_clamped"
     elif detected:
         detected_at = time.time()
         detection_signal = "metric_only"
@@ -605,6 +625,8 @@ def detect(ctx):
         "graph_edges": trace.get("graph_edges"),
         "trace_count": trace.get("trace_count"),
         "span_total": trace.get("span_total"),
+        "window_start": trace.get("window_start"),
+        "window_end": trace.get("window_end"),
         "failed_peers": {k: v for k, v in (trace.get("failed_peers") or {}).items()},
         "trace_anomalous": sorted(trace_anomalous),
         "root_cause_span": {

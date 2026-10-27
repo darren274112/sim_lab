@@ -1,0 +1,71 @@
+# K3S 平台治理：资源配额、默认资源、PDB、HPA
+# 先用 LimitRange 给未声明 resources 的容器兜底，ResourceQuota 才不会拒绝老服务重启。
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: sim-defaults
+  namespace: sim-test
+spec:
+  limits:
+  - type: Container
+    defaultRequest:
+      cpu: "50m"
+      memory: "64Mi"
+    default:
+      cpu: "300m"
+      memory: "256Mi"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: sim-quota
+  namespace: sim-test
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: "8Gi"
+    limits.cpu: "10"
+    limits.memory: "16Gi"
+    pods: "50"
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: state-store-pdb
+  namespace: sim-test
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: state-store
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-gateway-pdb
+  namespace: sim-test
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-gateway-hpa
+  namespace: sim-test
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api-gateway
+  minReplicas: 1
+  maxReplicas: 4
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70

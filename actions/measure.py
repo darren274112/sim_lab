@@ -10,21 +10,36 @@ def measure_detect_latency(ctx, params):
       evidence_latency_ms —— 注入 -> 最早可观测证据（首个失败 span / 首次未就绪）出现
       scan_duration_ms   —— 感知算法自身扫描耗时
       end_to_end_ms      —— 注入 -> 算法得出结论（含调度到算法执行开始的等待）
+
+    负值保护：证据时刻早于注入时刻只可能来自陈旧数据或时钟问题，
+    此时保留原始值并标记 anomaly，同时把对外延迟钳到 0，避免"负延迟"被当成有效指标。
     """
     inject_time = ctx.get("inject_time") or ctx.get("timestamps", {}).get("inject")
     detect_time = ctx.get("detect_time") or ctx.get("timestamps", {}).get("detect")
     det = ctx.get("detect_result") or {}
     scan = det.get("scan_duration_s")
     invoked = det.get("detect_invoked_at")
+    evidence_at = det.get("detected_at")
 
     if inject_time and detect_time:
-        latency = detect_time - inject_time
+        conclusion_latency = detect_time - inject_time
+        raw_evidence = (evidence_at - inject_time) if evidence_at else conclusion_latency
+        anomaly = raw_evidence < 0 or conclusion_latency < 0
+        evidence_latency = max(0.0, raw_evidence)
+        if anomaly:
+            print(f"[MEASURE] WARNING negative latency detected "
+                  f"(evidence={raw_evidence:.3f}s conclusion={conclusion_latency:.3f}s). "
+                  f"Check trace window / clock; clamping to 0.")
         result = {
             "inject_time": inject_time,
             "detect_time": detect_time,
-            "evidence_latency_ms": round(latency * 1000, 1),
-            "latency_seconds": latency,
-            "latency_ms": latency * 1000,
+            "evidence_at": evidence_at,
+            "evidence_latency_ms": round(evidence_latency * 1000, 1),
+            "latency_seconds": evidence_latency,
+            "latency_ms": evidence_latency * 1000,
+            "raw_evidence_latency_s": round(raw_evidence, 3),
+            "conclusion_latency_s": round(conclusion_latency, 3),
+            "anomaly": anomaly,
             "detection_signal": det.get("detection_signal"),
             "scan_duration_ms": round(scan * 1000, 1) if scan is not None else None,
             "end_to_end_ms": (round((invoked - inject_time + scan) * 1000, 1)
@@ -33,10 +48,11 @@ def measure_detect_latency(ctx, params):
         ctx["metrics"] = ctx.get("metrics", {})
         ctx["metrics"]["detect_latency"] = result
         print(f"\n{'='*50}")
-        print(f"DETECT_LATENCY: {latency:.3f}s ({latency*1000:.1f}ms)  "
-              f"signal={result['detection_signal']}")
+        print(f"DETECT_LATENCY: {evidence_latency:.3f}s ({evidence_latency*1000:.1f}ms)  "
+              f"signal={result['detection_signal']}  anomaly={anomaly}")
         if result["scan_duration_ms"] is not None:
             print(f"  scan={result['scan_duration_ms']:.1f}ms  "
+                  f"conclusion={result['conclusion_latency_s']}s  "
                   f"end_to_end={result['end_to_end_ms']}ms")
         print(f"DETECTED: {det.get('detected')}")
         print(f"SERVICE: {det.get('faulty_service')}")
@@ -108,7 +124,13 @@ def measure_summary(ctx, params):
         c = metrics["consistency"]
         print(f"[内容三 一致性] level={c['consistency_level']} sync={c['sync_interval_s']}s "
               f"state={c['state']} events={c['triggered_events']} mm1_wait={c['mm1_wait_s']}")
+        print(f"             观测分叉键={c.get('observed_divergent_keys')} "
+              f"观测一致={c.get('observed_consistent')}")
         if c.get("event_adjustments"):
             print(f"             adjustments={c['event_adjustments']}")
+    if "state_consistency" in metrics:
+        sc = metrics["state_consistency"]
+        print(f"[状态一致性校验] replicas={sc['replicas']} consistent={sc['consistent']} "
+              f"divergent={sc['divergent_keys']} unreachable={sc['unreachable']}")
     print(f"{'='*60}\n")
     return metrics
