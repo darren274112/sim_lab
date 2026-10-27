@@ -3,7 +3,6 @@
 本文说明仓库的分层、服务职责、真实调用链，以及一次实验从 YAML 到结果的执行路径。
 配套文档：
 
-- `docs/PLATFORM_AUDIT.md`：平台正确性与实验可运行性的实测审计（含真实输出）
 - `docs/K3S-PLATFORM.md`：K3S 平台能力（RBAC / Ingress / HPA / PDB / 配额 / 网络策略）
 - `docs/tracing-integration.md`：链路追踪接入细节与 A/B 结果
 - `DEBUG.md`：环境搭建、镜像构建与历史踩坑
