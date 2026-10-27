@@ -1,0 +1,42 @@
+name: 链路追踪验证（Jaeger 真实 Trace）
+namespace: sim-test
+vars:
+  # 每次探针打出的业务请求数（1 次 /trigger = 一条 15+ span 的完整链路）
+  probe_requests: 6
+  trace_lookback_s: 900
+
+steps:
+  - id: check_env
+    name: 检查微服务与 Jaeger 状态
+    action: k8s.check_ready
+    params:
+      services: ["orchestrator", "scenario-mgr", "entity-service", "comms-service", "sensor-service", "fire-control", "env-service", "log-service", "state-store", "telemetry-gw", "sim-bridge"]
+    timeout: 60
+
+  - id: traffic
+    name: 发起真实业务流量（产生跨服务调用链）
+    action: traffic.probe
+    params:
+      requests: "${vars.probe_requests}"
+      interval_s: 0.2
+    timeout: 120
+
+  - id: trace
+    name: 从 Jaeger 采集真实 Trace 并聚合成服务级指标
+    action: trace.collect
+    params:
+      lookback_s: "${vars.trace_lookback_s}"
+      limit: 120
+    timeout: 120
+
+  - id: graph
+    name: 由真实 span 父子关系推导运行态依赖图
+    action: trace.graph
+    timeout: 60
+
+  - id: verify
+    name: 校验链路落库完整性（Jaeger 服务列表 / trace 数量）
+    action: trace.verify
+    params:
+      lookback_s: "${vars.trace_lookback_s}"
+    timeout: 60

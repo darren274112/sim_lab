@@ -247,6 +247,7 @@ def main():
     import actions.algo  # noqa
     import actions.measure  # noqa
     import actions.ross  # noqa
+    import actions.trace  # noqa
 
     if args.command == "run":
         skip = args.skip.split(",") if args.skip else []

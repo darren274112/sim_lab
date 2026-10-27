@@ -238,6 +238,408 @@ sudo -u root python3 wf.py run --config configs/military_fault_detect.yaml --id 
 - `sim-bridge` 已移除 mock 模式，`/start` 会直接运行 ROSS；如果镜像中缺少 `mil_sim`，接口返回 503。故障注入接口当前返回 501，尚未接入运行中的 ROSS。
 - 工作流动作 `ross.start_sim` 目前只记录上下文状态，并未调用 sim-bridge；真实 ROSS 的运行请使用 `scripts/test-ross.sh` 或直接调用 sim-bridge 的 `/start`。
 
+## Prometheus 可观测性底座部署（2026-10-26）
+
+### 用途
+
+`actions/obs.py` 的基线采集依赖两类真实指标：
+
+| 指标 | 来源 | 采集方式 |
+| --- | --- | --- |
+| CPU / 内存 | K3S 自带 metrics-server | `kubectl top pods -n sim-test` |
+| 请求率（QPS） | 各服务 `/metrics` 暴露的 `*_requests_total` | Prometheus `rate(...[2m])` |
+
+metrics-server 随 K3S 安装（`kubectl top` 直接可用）；Prometheus 需要单独部署，本节即其完整过程。
+
+### 前置条件
+
+- K3S 正常运行，`kubectl get nodes` 为 `Ready`。
+- 11 个微服务镜像（`sim/*:latest`）已按上一节构建并导入；`manifests/services.yaml` 已 apply，集群内能用服务名互相访问。
+- **Docker Hub 不可直连**（实测 `curl registry-1.docker.io` 返回 000），因此不能使用官方 `prom/prometheus` 镜像，而是从 GitHub release 下载二进制、再挂到本地已有的 `sim/orchestrator:latest` 基础层上构建。
+- GitHub release 可达（`github.com` 直连正常），`buildah 1.23.1` 已安装。
+
+### 步骤
+
+#### 1. 下载 Prometheus 二进制
+
+```bash
+cd /tmp
+if [ ! -x prometheus-2.53.0.linux-amd64/prometheus ]; then
+  curl -4 -L -o prom.tgz \
+    https://github.com/prometheus/prometheus/releases/download/v2.53.0/prometheus-2.53.0.linux-amd64.tar.gz
+  tar xzf prom.tgz
+fi
+./prometheus-2.53.0.linux-amd64/prometheus --version | head -1
+```
+
+实测输出（压缩包解出 132 MB 二进制）：
+
+```text
+prometheus, version 2.53.0 (branch: HEAD, revision: 4c35b9250afefede41c5f5acd76191f90f625898)
+```
+
+#### 2. 写抓取配置 `/tmp/prometheus.yml`
+
+抓取间隔 5s，静态列出 11 个服务的 `:8080/metrics`：
+
+```bash
+cat > /tmp/prometheus.yml <<'EOF'
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+scrape_configs:
+  - job_name: 'sim-services'
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+        - orchestrator:8080
+        - scenario-mgr:8080
+        - entity-service:8080
+        - comms-service:8080
+        - sensor-service:8080
+        - fire-control:8080
+        - env-service:8080
+        - log-service:8080
+        - state-store:8080
+        - telemetry-gw:8080
+        - sim-bridge:8080
+EOF
+```
+
+#### 3. 以 `sim/orchestrator:latest` 为基础层构建镜像
+
+`buildah from` 复用本地已导入的镜像，`copy` 只追加二进制和配置，全程不联网：
+
+```bash
+set -e
+cid=$(buildah from docker.io/sim/orchestrator:latest)
+buildah copy $cid /tmp/prometheus-2.53.0.linux-amd64/prometheus /usr/local/bin/prometheus
+buildah copy $cid /tmp/prometheus-2.53.0.linux-amd64/promtool   /usr/local/bin/promtool
+buildah copy $cid /tmp/prometheus.yml /etc/prometheus/prometheus.yml
+buildah config --entrypoint '["/usr/local/bin/prometheus","--config.file=/etc/prometheus/prometheus.yml","--storage.tsdb.path=/prometheus","--storage.tsdb.retention.time=2h"]' $cid
+buildah commit --quiet $cid docker.io/sim/prometheus:latest
+buildah rm $cid
+
+# 导出 docker-archive（buildah 1.23 没有 load 子命令，必须走 push docker-archive）
+rm -f /tmp/prom_img.tar
+buildah push docker.io/sim/prometheus:latest docker-archive:/tmp/prom_img.tar
+ls -lh /tmp/prom_img.tar
+```
+
+实测 `/tmp/prom_img.tar` 约 428 MB（基础层 296 MB + 二进制 132 MB）。
+
+#### 4. 导入 containerd
+
+```bash
+k3s ctr -n k8s.io images import /tmp/prom_img.tar
+k3s ctr -n k8s.io images ls -q | grep prometheus
+```
+
+应看到 `docker.io/sim/prometheus:latest`。
+
+#### 5. 部署 Deployment + Service
+
+```bash
+cat > /tmp/prometheus.yaml <<'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: sim-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+        - name: prometheus
+          image: sim/prometheus:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/usr/local/bin/prometheus"]
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus"
+            - "--storage.tsdb.retention.time=2h"
+          ports:
+            - containerPort: 9090
+          volumeMounts:
+            - name: data
+              mountPath: /prometheus
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: sim-test
+spec:
+  selector:
+    app: prometheus
+  ports:
+    - port: 9090
+      targetPort: 9090
+EOF
+
+kubectl apply -f /tmp/prometheus.yaml
+kubectl -n sim-test rollout status deploy/prometheus --timeout=120s
+```
+
+`imagePullPolicy: IfNotPresent` 和 `command/args` **两项都不能省**，原因见下面的踩坑记录。
+
+#### 6. 验证
+
+```bash
+# a) Pod 与健康检查
+kubectl -n sim-test get pods -l app=prometheus -o wide
+kubectl -n sim-test exec deploy/prometheus -- promtool check healthy
+
+# b) 抓取目标是否全 UP（集群内 DNS 解析 prometheus:9090）
+kubectl -n sim-test exec -i deploy/orchestrator -- python - <<'PY'
+import json, urllib.request
+d = json.loads(urllib.request.urlopen("http://prometheus:9090/api/v1/targets", timeout=10).read().decode())
+act = d["data"]["activeTargets"]
+print("targets", len(act), "up", sum(1 for t in act if t["health"] == "up"))
+for t in act:
+    if t["health"] != "up":
+        print("DOWN", t["labels"].get("instance"), t.get("lastError"))
+PY
+
+# c) 请求率查询（obs.py 实际使用的表达式）
+kubectl -n sim-test exec -i deploy/orchestrator -- python - <<'PY'
+import json, urllib.request, urllib.parse
+q = 'sum by (instance) (rate({__name__=~".*_requests_total"}[2m]))'
+u = "http://prometheus:9090/api/v1/query?query=" + urllib.parse.quote(q)
+d = json.loads(urllib.request.urlopen(u, timeout=10).read().decode())
+for r in d["data"]["result"][:4]:
+    print(r["metric"].get("instance"), round(float(r["value"][1]), 4))
+PY
+```
+
+实测结果：
+
+```text
+NAME                          READY   STATUS    RESTARTS   AGE     IP           NODE
+prometheus-79966c7f6b-847r9   1/1     Running   0          3h25m   10.42.0.62   ubu-22
+
+SUCCESS:  Prometheus Server is Healthy.
+
+targets 11 up 11
+
+entity-service:8080 0.1217
+sim-bridge:8080 0.0609
+log-service:8080 0.1217
+fire-control:8080 0.1217
+```
+
+Service：`prometheus   ClusterIP   10.43.210.49   <none>   9090/TCP   app=prometheus`
+
+请求率数值随业务流量变化（无流量时接近 0），`targets 11 up 11` 才是判断部署成功的硬指标。
+
+#### 7. 集群外查看 UI / 执行 PromQL
+
+```bash
+kubectl -n sim-test port-forward svc/prometheus 9090:9090
+# 浏览器打开 http://localhost:9090
+#   /targets —— 查看 11 个 target 的抓取状态与 last scrape 时间
+#   /graph   —— 直接跑 PromQL，例如 rate(fire_control_requests_total[2m])
+```
+
+### 与实验流程的衔接
+
+- `actions/obs.py::collect_baseline` 在集群内查询 `http://prometheus:9090`，通过 `kubectl exec deploy/orchestrator` 执行 Pod 内 Python，不依赖本机能否路由到 ClusterIP。
+- 逐服务查询每次要一次 `kubectl exec`（约 0.4 s），高频采样路径上用的是 `_prom_rates_by_instance()`：一条 `sum by (instance) (rate({__name__=~".*_requests_total"}[2m]))` 一次取回全部服务请求率，只有 1 次 exec。
+- 指标名里的 `-` 在 `services/common/base.py` 中被替换成 `_`，所以实际指标是 `fire_control_requests_total` 而不是 `fire-control_requests_total`（后者会被 `prometheus_client` 判为非法并在启动时抛 `ValueError`）。
+- Prometheus 不可用时 `collect_baseline` 会退化为只用 metrics-server 的 CPU/内存，请求率记 0，实验仍能跑通但特征维度缺一项。
+
+### 踩坑记录
+
+- **Docker Hub 不可达**：`docker.io/prom/prometheus` 拉不到。必须走"GitHub 下载二进制 + buildah 挂到 `sim/orchestrator:latest`"这条路。
+- **`:latest` 默认 `imagePullPolicy: Always`**：不带 `IfNotPresent` 时 Pod 进 `ImagePullBackOff`，去 Docker Hub 拉 `sim/prometheus:latest` 必然失败。
+- **`buildah config --entrypoint` 不足以让 Pod 跑对进程**：基础镜像 `sim/orchestrator:latest` 自带 `CMD python app.py`，Deployment 未指定 `command` 时会继续跑 orchestrator 的 uvicorn，`/api/v1/targets` 返回 404，日志里看到的是 orchestrator 的启动输出。必须在 Deployment 里用 `command` + `args` 显式覆盖（这也是 `fix_prometheus.py` 存在的原因：`deploy_prometheus.py` 里的首版清单缺这两项）。
+- **`docker-archive` 不能覆盖已存在的 tar**：`buildah push ... docker-archive:/tmp/prom_img.tar` 在文件已存在时报错，push 前先 `rm -f`。
+- **存储是 `emptyDir` + `retention 2h`**：Pod 重建即清空、只留 2 小时数据，做 48h 长跑要换 PVC（`local-path` StorageClass 已随 K3S 提供）。
+- **抓取窗口**：`scrape_interval: 5s`，配套 PromQL 用 `[2m]`（24 个样本）算 `rate`，窗口过短（如 `[30s]`）在服务稀疏请求下会大量返回空值。
+
+### 卸载 / 重建
+
+```bash
+kubectl -n sim-test delete deploy/prometheus svc/prometheus
+k3s ctr -n k8s.io images rm docker.io/sim/prometheus:latest
+# 改完配置重建：重复步骤 3~6 即可，Deployment 会滚动更新
+```
+
+## Jaeger 链路追踪后端部署（2026-10-27）
+
+### 用途
+
+`services/common/tracing.py`（纯标准库追踪 SDK）在每个微服务里生成 SERVER/CLIENT span，经 OTLP/HTTP JSON 批量推送到 Jaeger collector `:4318`；`actions/trace.py` 的 `trace.collect` / `trace.graph` / `trace.verify` 和故障感知算法（`algos/fault_detect_dl.py` 的运行态依赖图、`failed_peers`、首错时刻）都从 Jaeger Query API（`:16686`）读真实 trace。架构与实测数据详见 `docs/tracing-integration.md`。
+
+
+
+### 前置条件
+
+- 同 Prometheus 一节：buildah 可用、`sim/orchestrator:latest` 已导入（作基础层）、GitHub release 可达、Docker Hub 不可达。
+- 11 个微服务镜像须是 **2026-10-26 之后** 用 `rebuild_services.py` 或 `build-images.sh` 重建的版本（包含 `services/common/tracing.py`），旧镜像不会上报任何 span。
+
+### 步骤
+
+#### 1. 下载 Jaeger 二进制
+
+```bash
+cd /tmp
+if [ ! -x jaeger-1.57.0-linux-amd64/jaeger-all-in-one ]; then
+  # 已有半截包可断点续传：curl -4 -L -C - -o jaeger.tar.gz <url>
+  curl -4 -L --retry 3 -o jaeger.tar.gz \
+    https://github.com/jaegertracing/jaeger/releases/download/v1.57.0/jaeger-1.57.0-linux-amd64.tar.gz
+  gzip -t jaeger.tar.gz   # 校验完整性，断了就 -C - 续传
+  tar xzf jaeger.tar.gz
+fi
+./jaeger-1.57.0-linux-amd64/jaeger-all-in-one version 2>&1 | tail -1
+```
+
+实测输出：
+
+```text
+{"gitCommit":"55e991a29725468164b11be5fc4e260dc09598d6","gitVersion":"v1.57.0","buildDate":"2024-05-01T23:19:12Z"}
+```
+
+#### 2. 构建 `sim/jaeger:latest` 并导入 containerd
+
+与 Prometheus 相同的"基础层 + 追加二进制"套路，全程不联网：
+
+```bash
+set -e
+JV=1.57.0
+cid=$(buildah from docker.io/sim/orchestrator:latest)
+buildah copy $cid /tmp/jaeger-${JV}-linux-amd64/jaeger-all-in-one /usr/local/bin/jaeger-all-in-one
+buildah config --entrypoint '["/usr/local/bin/jaeger-all-in-one"]' $cid
+buildah config --env SPAN_STORAGE_TYPE=memory $cid
+buildah commit --quiet $cid docker.io/sim/jaeger:latest
+buildah rm $cid
+
+rm -f /tmp/jaeger_img.tar   # docker-archive 不能覆盖已存在的 tar
+buildah push docker.io/sim/jaeger:latest docker-archive:/tmp/jaeger_img.tar
+k3s ctr -n k8s.io images import /tmp/jaeger_img.tar
+k3s ctr -n k8s.io images ls -q | grep jaeger
+```
+
+应看到 `docker.io/sim/jaeger:latest`。
+
+#### 3. 部署 Deployment + Service
+
+直接用仓库里的清单：
+
+```bash
+kubectl apply -f manifests/jaeger.yaml
+kubectl -n sim-test rollout status deploy/jaeger --timeout=180s
+```
+
+关键点（同 Prometheus 的教训）：
+
+- `imagePullPolicy: IfNotPresent`（`:latest` 默认 Always 会去 Docker Hub 拉取失败）；
+- `command` + `args` 显式覆盖基础镜像的 uvicorn CMD；
+- 参数：`--memory.max-traces=20000`（内存存储上限）、`--collector.otlp.enabled=true`（开 OTLP 收口）、`--query.base-path=/`；
+- 端口：UI `16686`、OTLP-HTTP `4318`、OTLP-gRPC `4317`、Jaeger thrift `14268`，Service 全部暴露；
+- `readinessProbe` 打在 `GET / :16686`，滚动更新时能正确等待。
+
+#### 4. 验证
+
+```bash
+# a) Pod
+kubectl -n sim-test get pods -l app=jaeger -o wide
+
+# b) 服务列表（集群内 DNS，从 orchestrator Pod 查）
+kubectl -n sim-test exec -i deploy/orchestrator -- python - <<'PY'
+import json, urllib.request
+d = json.loads(urllib.request.urlopen("http://jaeger:16686/api/services", timeout=10).read().decode())
+print("services:", d["data"])
+PY
+
+# c) OTLP 收口自检：手动造一个 span 推到 :4318，1 秒后应出现在服务列表
+kubectl -n sim-test exec -i deploy/orchestrator -- python - <<'PY'
+import json, time, urllib.request
+now = time.time_ns()
+span = {"traceId": "11111111111111111111111111111111", "spanId": "2222222222222222",
+        "name": "otlp-selfcheck", "kind": 2, "startTimeUnixNano": str(now-12000000),
+        "endTimeUnixNano": str(now), "status": {"code": 1}}
+payload = {"resourceSpans": [{"resource": {"attributes": [
+            {"key": "service.name", "value": {"stringValue": "otlp-selfcheck"}}]},
+        "scopeSpans": [{"scope": {"name": "selfcheck"}, "spans": [span]}]}]}
+req = urllib.request.Request("http://jaeger:4318/v1/traces", data=json.dumps(payload).encode(),
+                             headers={"Content-Type": "application/json"}, method="POST")
+print("OTLP_STATUS", urllib.request.urlopen(req, timeout=10).status)
+time.sleep(1)
+svcs = json.loads(urllib.request.urlopen("http://jaeger:16686/api/services", timeout=10).read().decode())["data"]
+print("selfcheck visible:", "otlp-selfcheck" in svcs)
+PY
+
+# d) 端到端：触发一次真实业务链路，看完整 trace
+python scripts/verify_tracing.py   # 本机执行；期望 39 span / 4 层 / 16 条运行态边
+```
+
+实测结果：
+
+```text
+NAME                      READY   STATUS    RESTARTS   AGE   IP            NODE
+jaeger-696c7bc5d9-p5ffb   1/1     Running   0          13h   10.42.0.115   ubu-22
+
+jaeger   ClusterIP   10.43.251.211   <none>   16686/TCP,4318/TCP,4317/TCP,14268/TCP   app=jaeger
+
+services: ['log-service', 'state-store', 'scenario-mgr', 'orchestrator', 'comms-service',
+           'fire-control', 'sensor-service', 'env-service', 'entity-service', 'telemetry-gw',
+           'sim-bridge', 'jaeger-all-in-one', 'otlp-selfcheck']
+```
+
+（`jaeger-all-in-one` 与 `otlp-selfcheck` 是自检产生的假服务名，属正常现象；重启 Jaeger 后消失。）
+
+#### 5. 集群外查看 UI
+
+```bash
+kubectl -n sim-test port-forward svc/jaeger 16686:16686
+# 浏览器打开 http://localhost:16686
+# Service 选 orchestrator → Find Traces，可看到 39 span 的完整调用树；
+# span 的 peer.service 标签直接指认被调用的下游，是根因定位的关键证据。
+```
+
+### 服务侧配置（环境变量）
+
+`services/common/tracing.py` 全部有默认值，默认即可对接本节的 Jaeger：
+
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `SERVICE_NAME` | `unknown` | span 的 `service.name`（base.py 从部署名注入） |
+| `OTLP_ENDPOINT` | `http://jaeger:4318/v1/traces` | 导出地址 |
+| `TRACING_ENABLED` | `1` | 设 `0` 关闭追踪（中间件直通） |
+| `TRACE_SAMPLE_RATE` | `1.0` | 全量采样；48h 长跑建议调低 + 错误 span 全留 |
+| `TRACE_MAX_QUEUE` | `4096` | 有界导出队列，满则丢 span 只计数不阻塞业务 |
+
+每个服务自带 `GET /tracez` 返回导出统计（已导出/队列积压/失败数），排查上报问题先看它。
+
+### 踩坑记录
+
+- Prometheus 一节的坑全部适用：`:latest` 必须 `IfNotPresent`；`command`+`args` 必须显式覆盖基础镜像 CMD；`docker-archive` 前先 `rm -f`；GitHub 大包下载易断，用 `curl -C -` 续传 + `gzip -t` 校验（实测 jaeger.tar.gz 曾下到一半截断）。
+- **Jaeger 1.57 的 Query API 结构**：`serviceName` 在 `trace.processes[processID].serviceName`，**不在** `span.process`（按 OTel 习惯读 `span.process` 会得到 `None`，所有 span 归到 `?`）。`actions/trace.py` 已按 1.57 结构解析；升级 Jaeger 大版本时注意这里。
+- **`/metrics` 噪声**：Prometheus 每 5s 抓一次各服务，每次都会生成一条单 span 的"根 trace"，把业务链路挤出查询窗口。`tracing.py` 的中间件已跳过 `/metrics` 与 `/tracez` 等路径，新增抓取类路径时记得同步进 `_SKIP_PATHS`。
+- **多服务查询要去重**：`/api/traces?service=A&service=B` 返回的 trace 有重叠，`actions/trace.py` 按 `traceID` 去重，否则 span 数虚高约 11 倍。
+- **统计调用边要两遍扫描**：先登记全部 `spanID -> serviceName`，再扫父子引用，否则子 span 先出现时丢边。
+- **内存存储**：`SPAN_STORAGE_TYPE=memory` + `--memory.max-traces=20000`，Pod 重启即清空、上限 2 万条。想清空 trace 直接 `kubectl -n sim-test rollout restart deploy/jaeger`；48h 长跑需换 badger/Cassandra 存储。
+- **OTLP JSON 收口**：Jaeger 1.57 的 `/v1/traces` 接受 `application/json` 的 OTLP JSON（无需 protobuf），这正是纯标准库 SDK 能零依赖工作的前提。
+
+### 卸载 / 重建
+
+```bash
+kubectl -n sim-test delete deploy/jaeger svc/jaeger
+k3s ctr -n k8s.io images rm docker.io/sim/jaeger:latest
+# 重新部署：kubectl apply -f manifests/jaeger.yaml（镜像已存在则跳过步骤 2）
+```
+
 ## ROSS 仿真引擎（sim-bridge）
 
 ### 是否需要单独镜像

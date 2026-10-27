@@ -1,4 +1,5 @@
 from common.base import create_app, REQUEST_COUNT
+from common import tracing
 import os
 
 app = create_app()
@@ -10,14 +11,25 @@ scenarios = {
     "combined_arms": {"name": "合同作战", "units": 20, "duration_min": 60}
 }
 
+
 @app.get("/")
 def root():
     REQUEST_COUNT.labels(method="GET", endpoint="/").inc()
     return {"service": SERVICE_NAME, "scenarios": list(scenarios.keys())}
 
+
 @app.get("/scenario/{name}")
 def get_scenario(name: str):
+    """加载想定：写入状态存储（state-store）并留痕（log-service）。"""
     REQUEST_COUNT.labels(method="GET", endpoint="/scenario").inc()
-    if name in scenarios:
-        return scenarios[name]
-    return {"error": "not found"}, 404
+    sc = scenarios.get(name)
+    if sc is None:
+        return {"error": "not found"}, 404
+    s_state, _ = tracing.traced_json_request(
+        "PUT", f"http://state-store:8080/state/{name}", body=sc, timeout=3.0,
+        span_name="PUT state-store/state")
+    s_log, _ = tracing.traced_json_request(
+        "POST", "http://log-service:8080/log",
+        body={"event": "scenario_loaded", "name": name}, timeout=3.0,
+        span_name="POST log-service/log")
+    return {**sc, "state_status": s_state, "log_status": s_log}

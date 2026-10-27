@@ -56,6 +56,36 @@ def _prom_query(expr, namespace):
     return float(vals[0]["value"][1])
 
 
+def _prom_rates_by_instance(namespace):
+    """单次批量查询所有服务的请求率（按 instance 标签分组）。
+
+    相比逐服务查询（每次一次 kubectl exec，~0.4s），这里只做 1 次 exec，
+    是高频采样路径上的关键优化。返回 {service: rate}。
+    """
+    expr = 'sum by (instance) (rate({__name__=~".*_requests_total"}[2m]))'
+    script = (
+        "import json,urllib.request,urllib.parse\n"
+        "base='http://prometheus:9090'\n"
+        "u=base+'/api/v1/query?query='+urllib.parse.quote(" + repr(expr) + ")\n"
+        "d=json.loads(urllib.request.urlopen(u,timeout=10).read().decode())\n"
+        "out={}\n"
+        "for r in d['data']['result']:\n"
+        "    inst=r['metric'].get('instance','')\n"
+        "    out[inst.split(':')[0]]=float(r['value'][1])\n"
+        "print(json.dumps(out))\n"
+    )
+    r = subprocess.run(
+        ["kubectl", "-n", namespace, "exec", "-i", "deploy/orchestrator", "--", "python", "-"],
+        input=script, capture_output=True, text=True, timeout=30,
+    )
+    if r.returncode != 0:
+        return {}
+    try:
+        return json.loads(r.stdout)
+    except Exception:
+        return {}
+
+
 @register_action("obs.collect_baseline")
 def collect_baseline(ctx, params):
     """采集实验基线指标（真实）：metrics-server 的 CPU/内存 + Prometheus 请求率，保存 baseline.json"""
@@ -66,9 +96,9 @@ def collect_baseline(ctx, params):
     prometheus_available = True
     rates = {}
     try:
-        for svc in SIM_SERVICES:
-            prefix = svc.replace("-", "_")
-            rates[svc] = _prom_query(f"sum(rate({prefix}_requests_total[2m]))", namespace)
+        rates = _prom_rates_by_instance(namespace)  # 单次批量查询
+        if not rates:
+            raise RuntimeError("empty result")
     except Exception as e:
         prometheus_available = False
         print(f"[OBS] Prometheus unavailable ({e}); request-rate left as 0")

@@ -4,24 +4,42 @@ from wf import register_action
 
 @register_action("measure.detect_latency")
 def measure_detect_latency(ctx, params):
-    """计算故障感知延迟 = 检测时间 - 故障注入时间"""
+    """计算故障感知延迟。
+
+    拆成三个口径，避免用"批处理算法耗时"冒充"感知延迟"：
+      evidence_latency_ms —— 注入 -> 最早可观测证据（首个失败 span / 首次未就绪）出现
+      scan_duration_ms   —— 感知算法自身扫描耗时
+      end_to_end_ms      —— 注入 -> 算法得出结论（含调度到算法执行开始的等待）
+    """
     inject_time = ctx.get("inject_time") or ctx.get("timestamps", {}).get("inject")
     detect_time = ctx.get("detect_time") or ctx.get("timestamps", {}).get("detect")
+    det = ctx.get("detect_result") or {}
+    scan = det.get("scan_duration_s")
+    invoked = det.get("detect_invoked_at")
 
     if inject_time and detect_time:
         latency = detect_time - inject_time
         result = {
             "inject_time": inject_time,
             "detect_time": detect_time,
+            "evidence_latency_ms": round(latency * 1000, 1),
             "latency_seconds": latency,
             "latency_ms": latency * 1000,
+            "detection_signal": det.get("detection_signal"),
+            "scan_duration_ms": round(scan * 1000, 1) if scan is not None else None,
+            "end_to_end_ms": (round((invoked - inject_time + scan) * 1000, 1)
+                              if invoked and scan is not None else None),
         }
         ctx["metrics"] = ctx.get("metrics", {})
         ctx["metrics"]["detect_latency"] = result
         print(f"\n{'='*50}")
-        print(f"DETECT_LATENCY: {latency:.3f}s ({latency*1000:.1f}ms)")
-        print(f"DETECTED: {ctx.get('detect_result', {}).get('detected')}")
-        print(f"SERVICE: {ctx.get('detect_result', {}).get('faulty_service')}")
+        print(f"DETECT_LATENCY: {latency:.3f}s ({latency*1000:.1f}ms)  "
+              f"signal={result['detection_signal']}")
+        if result["scan_duration_ms"] is not None:
+            print(f"  scan={result['scan_duration_ms']:.1f}ms  "
+                  f"end_to_end={result['end_to_end_ms']}ms")
+        print(f"DETECTED: {det.get('detected')}")
+        print(f"SERVICE: {det.get('faulty_service')}")
         print(f"{'='*50}\n")
         return result
     else:
@@ -45,3 +63,52 @@ def measure_recovery_time(ctx, params):
     else:
         print("[MEASURE] No recovery_time available (tolerate did not record one)")
         return {"error": "no recovery_time"}
+
+
+@register_action("measure.summary")
+def measure_summary(ctx, params):
+    """汇总并打印本次实验中各算法样例的关键结果"""
+    metrics = ctx.get("metrics", {})
+    print(f"\n{'='*60}")
+    print("EXPERIMENT SUMMARY — 三项研究内容算法样例结果")
+    print(f"{'='*60}")
+    if "detect_latency" in metrics:
+        dl = metrics["detect_latency"]
+        print(f"[感知延迟] 证据出现 {dl['evidence_latency_ms']:.1f} ms "
+              f"(signal={dl.get('detection_signal')})  "
+              f"扫描 {dl.get('scan_duration_ms')} ms  "
+              f"端到端 {dl.get('end_to_end_ms')} ms")
+    if "recovery_time" in metrics:
+        print(f"[恢复时间] {metrics['recovery_time']['recovery_time_s']:.3f} s")
+    if "perception" in metrics:
+        p = metrics["perception"]
+        print(f"[内容一 故障感知] detected={p['detected']} faulty={p['faulty_service']} "
+              f"confidence={p['confidence']} signal={p.get('detection_signal')}")
+        print(f"             root_cause_top3={[r['service'] for r in p['root_cause_top3']]} "
+              f"path={p['propagation_path']}")
+        if p.get("impacted_services"):
+            print(f"             impacted={[(i['service'], i['distance']) for i in p['impacted_services']]}")
+        if p.get("trace_failed_peers"):
+            print(f"             trace_failed_calls={p['trace_failed_peers']}")
+    tr = ctx.get("trace_stats") or {}
+    if tr.get("available"):
+        diff = tr.get("graph_diff") or {}
+        edges = (len(diff.get("runtime_edges", [])) if diff else tr.get("graph_edges"))
+        print(f"[链路追踪] traces={tr.get('trace_count')} spans={tr.get('span_total')} "
+              f"edges={edges} graph_source={tr.get('graph_source') or 'runtime_trace'} "
+              f"coverage={diff.get('coverage')}")
+    if "tolerance" in metrics:
+        t = metrics["tolerance"]
+        print(f"[内容二 容错] strategy={t['strategy']} q={t['q_values']} "
+              f"degrade={t['degradation_plan']} recovery={t['recovery_time_s']}s")
+        acts = t.get("actions_applied") or []
+        if acts:
+            print(f"             actions={[a.get('type') for a in acts]}")
+    if "consistency" in metrics:
+        c = metrics["consistency"]
+        print(f"[内容三 一致性] level={c['consistency_level']} sync={c['sync_interval_s']}s "
+              f"state={c['state']} events={c['triggered_events']} mm1_wait={c['mm1_wait_s']}")
+        if c.get("event_adjustments"):
+            print(f"             adjustments={c['event_adjustments']}")
+    print(f"{'='*60}\n")
+    return metrics

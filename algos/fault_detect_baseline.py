@@ -1,4 +1,6 @@
 import time
+from datetime import timezone
+
 from kubernetes import client, config
 
 # 在运行 wf.py 的主机（已配置 kubeconfig）上加载集群访问
@@ -50,16 +52,26 @@ def detect(ctx):
                 evidence.append(f"{len(not_ready)} pod(s) of '{target}' not Ready: {not_ready}")
                 break
             time.sleep(0.5)
-        # 兜底：若已恢复，用 Pod 重启事件作为故障证据
+        # 兜底：若已恢复（pod 自愈太快，轮询没抓到未就绪窗口），
+        # 用"Pod 已被替换"作为故障证据；时刻取观测到该事件的时刻，不做回填，
+        # 否则感知延迟会被伪造成注入后固定值。
         if not detected:
             pods = v1.list_namespaced_pod(namespace=namespace, label_selector=f"app={target}")
+            killed = fault.get("pod_name")
             for p in pods.items:
+                replaced = killed and p.metadata.name != killed
                 st = p.status.start_time
-                if st and inject_time and time.mktime(st.timetuple()) > inject_time:
+                restarted = False
+                if st and inject_time:
+                    ts = st.timestamp() if st.tzinfo else st.replace(tzinfo=timezone.utc).timestamp()
+                    restarted = ts > inject_time
+                if replaced or restarted:
                     detected = True
-                    detected_at = inject_time + 0.3
+                    detected_at = time.time()
                     confidence = 0.6
-                    evidence.append("pod restarted after inject (event evidence)")
+                    evidence.append(
+                        f"pod replaced after inject ({killed} -> {p.metadata.name}), "
+                        "no unready window observed by polling")
                     break
 
     result = {

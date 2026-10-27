@@ -103,6 +103,39 @@ def detect(ctx):
 2. **容错** - 基于服务降级和动态调度的仿真微服务容错  
 3. **一致性** - 基于模糊控制与排队论协同决策的仿真微服务状态一致性维护
 
+## 链路追踪（Jaeger）
+
+链路追踪不是画的拓扑图，而是真实 Trace 数据。组成：
+
+| 组件 | 位置 | 作用 |
+| --- | --- | --- |
+| 追踪 SDK | `services/common/tracing.py` | W3C `traceparent` 传播、ASGI 中间件生成 SERVER span、OTLP/HTTP JSON 批量导出（纯标准库，无第三方依赖） |
+| 追踪后端 | `sim/jaeger:latest`（`deploy_jaeger.py` 部署） | 收 span、存 trace、提供 UI(16686) 与查询 API |
+| 采集动作 | `actions/trace.py` | `trace.collect` 聚合服务级指标 + 运行态依赖图；`trace.graph` 对比设计态；`trace.verify` 校验落库；`traffic.probe` 打业务流量 |
+| 算法消费 | `algos/fault_detect_dl.py` | 依赖图来自真实 span 父子关系；失败 span 的 `peer.service` 指认故障服务；首个错误 span 时刻作为感知时刻 |
+
+一次 `POST orchestrator:8080/trigger` 会串起真实调用链：
+
+```
+orchestrator -> scenario-mgr -> state-store / log-service
+             -> fire-control -> sensor-service -> entity-service / env-service
+             -> telemetry-gw
+```
+
+验证：
+```bash
+python deploy_jaeger.py                 # 部署 Jaeger（已部署可跳过）
+python scripts/verify_tracing.py        # OTLP 收口 + 多级 trace 自检
+python wf.py run --config configs/tracing_pipeline.yaml --id trace-001
+python wf.py run --config configs/algo_samples.yaml --id algo-003
+```
+
+查看 Trace：`kubectl -n sim-test port-forward svc/jaeger 16686:16686` → http://localhost:16686
+（服务选 `orchestrator`，按 `peer.service` 即可看到哪个下游被调失败）
+
+> 注意：镜像里的 `/app/common` 是构建期拷入的，改动 `services/common/*` 后需重建镜像。
+> 已部署环境可用 `python rebuild_services.py [服务名...]` 热补丁（不重新 pip install）。
+
 ## 注意
 
 - 默认使用命名空间 `sim-test`，限制故障注入范围

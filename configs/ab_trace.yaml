@@ -1,0 +1,63 @@
+name: 感知 A/B —— 深度学习 + 链路追踪（真实 Trace 定位）
+namespace: sim-test
+vars:
+  target_service: fire-control
+  scenario: battalion_attack
+  trace_lookback_s: 900
+
+# 与 configs/ab_baseline.yaml 严格同构（同样的流量、注入时序），
+# 唯一差别：感知算法使用 PCA+自编码器异常检测 + Jaeger 真实 Trace 定位。
+steps:
+  - id: baseline
+    name: 采集真实基线指标
+    action: obs.collect_baseline
+    timeout: 60
+
+  - id: traffic_normal
+    name: 正常态业务流量
+    action: traffic.probe
+    params:
+      requests: 5
+      interval_s: 0.2
+    timeout: 120
+
+  - id: inject
+    name: 注入微服务故障（pod-kill）
+    action: fault.inject_pod_kill
+    params:
+      service: "${vars.target_service}"
+    record_time: inject_time
+    timeout: 60
+
+  - id: traffic_fault
+    name: 故障期间业务流量
+    action: traffic.probe
+    params:
+      requests: 8
+      interval_s: 0.3
+    timeout: 180
+
+  - id: detect
+    name: 故障感知（深度学习 + 链路追踪）
+    action: algo.run_detect
+    params:
+      algo: fault_detect_dl
+    timeout: 180
+
+  - id: measure_latency
+    name: 计算故障感知延迟
+    action: measure.detect_latency
+    timeout: 10
+
+  - id: trace
+    name: 采集真实 Trace（服务级指标 + 运行态依赖图）
+    action: trace.collect
+    params:
+      lookback_s: "${vars.trace_lookback_s}"
+      limit: 120
+    timeout: 120
+
+  - id: summary
+    name: 实验汇总
+    action: measure.summary
+    timeout: 10
