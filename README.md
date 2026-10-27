@@ -13,9 +13,10 @@
 
 文档：
 - `docs/ARCHITECTURE.md` — 代码结构、服务职责与真实调用链
-- `docs/PLATFORM_AUDIT.md` — 平台正确性与可运行性实测审计
 - `docs/K3S-PLATFORM.md` — K3S 平台能力（RBAC/Ingress/HPA/PDB/网络策略）
 - `docs/tracing-integration.md` — 链路追踪接入与 A/B 结果
+- `docs/部署使用手册.md` — 小白版部署与使用手册（环境/构建/部署/验证/排错）
+- `docs/代码说明手册.md` — 小白版代码说明（目录地图/模块职责/核心流程/配置解读）
 - `DEBUG.md` — 环境搭建、镜像构建与踩坑记录
 
 ## 仿真微服务
@@ -175,3 +176,4 @@ python wf.py run --config configs/algo_samples.yaml --id algo-003
 - 默认使用命名空间 `sim-test`，限制故障注入范围
 - 时间戳由工作流统一记录，确保计时口径一致
 - 支持中断后恢复，清理步骤设置 `always_run: true`
+
