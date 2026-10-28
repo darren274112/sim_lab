@@ -1,0 +1,130 @@
+{
+  "exp_id": "verify-military_fault_tolerate",
+  "status": "COMPLETED",
+  "steps": {
+    "check_env": {
+      "id": "check_env",
+      "name": "\u68c0\u67e5\u73af\u5883",
+      "status": "SUCCEEDED",
+      "start_time": 1793076158.2723231,
+      "end_time": 1793076158.3263235,
+      "error": null,
+      "result": {
+        "ready": [
+          "orchestrator",
+          "scenario-mgr",
+          "entity-service",
+          "comms-service",
+          "sensor-service",
+          "fire-control",
+          "env-service",
+          "log-service",
+          "state-store",
+          "telemetry-gw",
+          "sim-bridge"
+        ]
+      },
+      "duration": 0.0540003776550293
+    },
+    "ross_ready": {
+      "id": "ross_ready",
+      "name": "\u68c0\u67e5ROSS",
+      "status": "SUCCEEDED",
+      "start_time": 1793076158.3302958,
+      "end_time": 1793076158.331959,
+      "error": null,
+      "result": {
+        "status": "ready",
+        "engine": "ross"
+      },
+      "duration": 0.0016632080078125
+    },
+    "start_sim": {
+      "id": "start_sim",
+      "name": "\u542f\u52a8\u4eff\u771f",
+      "status": "SUCCEEDED",
+      "start_time": 1793076158.3356164,
+      "end_time": 1793076159.0954754,
+      "error": null,
+      "result": {
+        "status": "started",
+        "ross": {
+          "running": false,
+          "engine": "ross",
+          "mode": "real",
+          "lp_count": 14,
+          "events_processed": 608,
+          "end_time": 20.0,
+          "returncode": 0,
+          "pid": 42,
+          "error": null,
+          "fault": {
+            "type": "lp_crash",
+            "target_lp": 0,
+            "at_time": 3.0,
+            "injected_at": 1793076154.2705073
+          },
+          "finished_at": 1793076158.8744955,
+          "output_tail": [
+            "\tGVT Real Time Interval (sec)                        0.00000000",
+            "\tBatch Size                                                  16",
+            "",
+            "\tForced GVT                                                   0",
+            "\tTotal GVT Computations                                       0",
+            "\tTotal All Reduce Calls                                       0",
+            "\tAverage Reduction / GVT                                   -nan",
+            "=== FAULT REPORT: type=lp_crash target=0 at=3.00, events_dropped=1 ===",
+            "",
+            "=== Simulation Complete (end time 20.0) ==="
+          ]
+        }
+      },
+      "duration": 0.7598590850830078
+    },
+    "inject": {
+      "id": "inject",
+      "name": "\u6ce8\u5165\u901a\u4fe1\u670d\u52a1\u6545\u969c",
+      "status": "SUCCEEDED",
+      "start_time": 1793076159.1000574,
+      "end_time": 1793076159.1302226,
+      "error": null,
+      "result": {
+        "status": "injected",
+        "pod_name": "comms-service-6fc9bf84bf-9xqm4",
+        "service": "comms-service",
+        "inject_time": 1793076159.1022377
+      },
+      "duration": 0.03016519546508789
+    },
+    "tolerate": {
+      "id": "tolerate",
+      "name": "\u8c03\u7528\u5bb9\u9519\u7b97\u6cd5\uff08\u670d\u52a1\u964d\u7ea7+\u52a8\u6001\u8c03\u5ea6\uff09",
+      "status": "SUCCEEDED",
+      "start_time": 1793076159.135295,
+      "end_time": 1793076161.7741964,
+      "error": null,
+      "result": {
+        "actions": [],
+        "target": "comms-service",
+        "recovered_at": 1793076161.7741435,
+        "recovery_time_s": 2.672,
+        "strategy": "k8s_self_heal_plus_force_restart",
+        "decision_time": 1793076161.7741513
+      },
+      "duration": 2.638901472091675
+    },
+    "cleanup": {
+      "id": "cleanup",
+      "name": "\u6e05\u7406",
+      "status": "SUCCEEDED",
+      "start_time": 1793076161.7808273,
+      "end_time": 1793076161.7837293,
+      "error": null,
+      "result": {
+        "status": "restored"
+      },
+      "duration": 0.0029020309448242188
+    }
+  },
+  "updated_at": "2026-10-27T04:42:41.791948"
+}

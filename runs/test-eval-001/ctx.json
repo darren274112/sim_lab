@@ -1,0 +1,406 @@
+{
+  "exp_id": "test-eval-001",
+  "config": {
+    "name": "military-fault-detect",
+    "namespace": "sim-test",
+    "timeout": 600,
+    "vars": {
+      "target_service": "fire-control",
+      "scenario": "battalion_attack",
+      "ross_fault": {
+        "type": "lp_crash",
+        "target_lp": 0,
+        "at_time": 3.0
+      }
+    },
+    "steps": [
+      {
+        "id": "check_env",
+        "name": "检查K8S环境与仿真微服务状态",
+        "action": "k8s.check_ready",
+        "params": {
+          "services": [
+            "orchestrator",
+            "scenario-mgr",
+            "entity-service",
+            "comms-service",
+            "sensor-service",
+            "fire-control",
+            "env-service",
+            "log-service",
+            "state-store",
+            "telemetry-gw",
+            "sim-bridge"
+          ]
+        },
+        "timeout": 60
+      },
+      {
+        "id": "ross_ready",
+        "name": "检查ROSS仿真引擎状态",
+        "action": "ross.check_ready",
+        "timeout": 30
+      },
+      {
+        "id": "baseline",
+        "name": "采集仿真基线指标",
+        "action": "obs.collect_baseline",
+        "timeout": 30
+      },
+      {
+        "id": "start_sim",
+        "name": "启动想定仿真（注入ROSS运行时故障）",
+        "action": "ross.start_sim",
+        "params": {
+          "scenario": "${vars.scenario}",
+          "fault": "${vars.ross_fault}"
+        },
+        "timeout": 60
+      },
+      {
+        "id": "inject",
+        "name": "注入故障（模拟火控服务失效）",
+        "action": "fault.inject_pod_kill",
+        "params": {
+          "service": "${vars.target_service}"
+        },
+        "record_time": "inject_time",
+        "timeout": 30
+      },
+      {
+        "id": "detect",
+        "name": "调用故障感知算法（K8S状态感知基线）",
+        "action": "algo.run_detect",
+        "params": {
+          "algo": "fault_detect_baseline"
+        },
+        "timeout": 120
+      },
+      {
+        "id": "tolerate",
+        "name": "执行容错恢复（等待K8S自愈并测量恢复时间）",
+        "action": "algo.run_tolerate",
+        "params": {
+          "algo": "fault_tolerate_baseline"
+        },
+        "timeout": 120
+      },
+      {
+        "id": "measure",
+        "name": "计算故障感知延迟",
+        "action": "measure.detect_latency",
+        "timeout": 10
+      },
+      {
+        "id": "measure_recovery",
+        "name": "计算故障恢复时间",
+        "action": "measure.recovery_time",
+        "timeout": 10
+      },
+      {
+        "id": "cleanup",
+        "name": "清理实验环境",
+        "action": "k8s.restore",
+        "timeout": 60,
+        "always_run": true
+      },
+      {
+        "id": "eval",
+        "name": "仿真结果量化评估",
+        "action": "eval.run",
+        "timeout": 60
+      },
+      {
+        "id": "eval_report",
+        "name": "输出评估报告",
+        "action": "eval.summary",
+        "timeout": 30
+      }
+    ]
+  },
+  "vars": {
+    "target_service": "fire-control",
+    "scenario": "battalion_attack",
+    "ross_fault": {
+      "type": "lp_crash",
+      "target_lp": 0,
+      "at_time": 3.0
+    }
+  },
+  "start_time": 1793166717.217679,
+  "timestamps": {
+    "inject": 1793166719.0964358,
+    "inject_time": 1793166719.0941722,
+    "detect": 1793166719.2575238
+  },
+  "run_dir": "runs/test-eval-001",
+  "baseline": {
+    "timestamp": 1793166718.1880035,
+    "namespace": "sim-test",
+    "prometheus_available": true,
+    "services": {
+      "orchestrator": {
+        "cpu": "2m",
+        "memory": "36Mi",
+        "request_rate_per_s": 0.0
+      },
+      "scenario-mgr": {
+        "cpu": "2m",
+        "memory": "35Mi",
+        "request_rate_per_s": 0.0
+      },
+      "entity-service": {
+        "cpu": "2m",
+        "memory": "35Mi",
+        "request_rate_per_s": 0.0
+      },
+      "comms-service": {
+        "cpu": "2m",
+        "memory": "35Mi",
+        "request_rate_per_s": 0.0
+      },
+      "sensor-service": {
+        "cpu": "2m",
+        "memory": "35Mi",
+        "request_rate_per_s": 0.0
+      },
+      "fire-control": {
+        "cpu": "2m",
+        "memory": "35Mi",
+        "request_rate_per_s": 0.0
+      },
+      "env-service": {
+        "cpu": "2m",
+        "memory": "35Mi",
+        "request_rate_per_s": 0.0
+      },
+      "log-service": {
+        "cpu": "2m",
+        "memory": "35Mi",
+        "request_rate_per_s": 0.0
+      },
+      "state-store": {
+        "cpu": "4m",
+        "memory": "35Mi",
+        "request_rate_per_s": 0.6696
+      },
+      "telemetry-gw": {
+        "cpu": "2m",
+        "memory": "35Mi",
+        "request_rate_per_s": 0.0
+      },
+      "sim-bridge": {
+        "cpu": "2m",
+        "memory": "36Mi",
+        "request_rate_per_s": 0.0
+      }
+    }
+  },
+  "ross_running": true,
+  "ross_result": {
+    "start": {
+      "started": true,
+      "scenario": "battalion_attack",
+      "mode": "real",
+      "fault": {
+        "type": "lp_crash",
+        "target_lp": 0,
+        "at_time": 3.0,
+        "injected_at": 1793166718.5557296
+      },
+      "command": [
+        "/app/ross-sim/build/mil_sim",
+        "--synch=1",
+        "--end=20.0",
+        "--units=10"
+      ],
+      "log": "/tmp/ross-sim.log"
+    },
+    "status": {
+      "running": false,
+      "engine": "ross",
+      "mode": "real",
+      "lp_count": 14,
+      "events_processed": 608,
+      "end_time": 20.0,
+      "returncode": 0,
+      "pid": 46,
+      "error": null,
+      "fault": {
+        "type": "lp_crash",
+        "target_lp": 0,
+        "at_time": 3.0,
+        "injected_at": 1793166718.5557296
+      },
+      "finished_at": 1793166719.0389483,
+      "output_tail": [
+        "\tGVT Real Time Interval (sec)                        0.00000000",
+        "\tBatch Size                                                  16",
+        "",
+        "\tForced GVT                                                   0",
+        "\tTotal GVT Computations                                       0",
+        "\tTotal All Reduce Calls                                       0",
+        "\tAverage Reduction / GVT                                   -nan",
+        "=== FAULT REPORT: type=lp_crash target=0 at=3.00, events_dropped=1 ===",
+        "",
+        "=== Simulation Complete (end time 20.0) ==="
+      ]
+    },
+    "fault": {
+      "type": "lp_crash",
+      "target_lp": 0,
+      "at_time": 3.0
+    }
+  },
+  "ross_status": {
+    "running": false,
+    "engine": "ross",
+    "mode": "real",
+    "lp_count": 14,
+    "events_processed": 608,
+    "end_time": 20.0,
+    "returncode": 0,
+    "pid": 46,
+    "error": null,
+    "fault": {
+      "type": "lp_crash",
+      "target_lp": 0,
+      "at_time": 3.0,
+      "injected_at": 1793166718.5557296
+    },
+    "finished_at": 1793166719.0389483,
+    "output_tail": [
+      "\tGVT Real Time Interval (sec)                        0.00000000",
+      "\tBatch Size                                                  16",
+      "",
+      "\tForced GVT                                                   0",
+      "\tTotal GVT Computations                                       0",
+      "\tTotal All Reduce Calls                                       0",
+      "\tAverage Reduction / GVT                                   -nan",
+      "=== FAULT REPORT: type=lp_crash target=0 at=3.00, events_dropped=1 ===",
+      "",
+      "=== Simulation Complete (end time 20.0) ==="
+    ]
+  },
+  "ross_fault": {
+    "type": "lp_crash",
+    "target_lp": 0,
+    "at_time": 3.0
+  },
+  "fault_info": {
+    "type": "pod_kill",
+    "service": "fire-control",
+    "time": 1793166719.0964358,
+    "pod_name": "fire-control-759fc4ff86-brt85"
+  },
+  "inject_time": 1793166719.0941722,
+  "algorithm_result": {
+    "actions": [],
+    "target": "fire-control",
+    "recovered_at": 1793166722.0570507,
+    "recovery_time_s": 2.963,
+    "strategy": "k8s_self_heal_plus_force_restart",
+    "decision_time": 1793166722.0570595
+  },
+  "detect_result": {
+    "detected": true,
+    "detected_at": 1793166719.2575238,
+    "detection_signal": "k8s_readiness",
+    "faulty_service": "fire-control",
+    "confidence": 0.95,
+    "method": "k8s_pod_readiness_polling",
+    "evidence": [
+      "2 pod(s) of 'fire-control' not Ready: ['fire-control-759fc4ff86-brt85', 'fire-control-759fc4ff86-xgb7p']"
+    ],
+    "detect_invoked_at": 1793166719.1678445,
+    "scan_duration_s": 0.09
+  },
+  "detect_time": 1793166719.2575238,
+  "tolerate_result": {
+    "actions": [],
+    "target": "fire-control",
+    "recovered_at": 1793166722.0570507,
+    "recovery_time_s": 2.963,
+    "strategy": "k8s_self_heal_plus_force_restart",
+    "decision_time": 1793166722.0570595
+  },
+  "metrics": {
+    "detect_latency": {
+      "inject_time": 1793166719.0941722,
+      "detect_time": 1793166719.2575238,
+      "evidence_at": 1793166719.2575238,
+      "evidence_latency_ms": 163.4,
+      "latency_seconds": 0.16335153579711914,
+      "latency_ms": 163.35153579711914,
+      "raw_evidence_latency_s": 0.163,
+      "conclusion_latency_s": 0.163,
+      "anomaly": false,
+      "detection_signal": "k8s_readiness",
+      "scan_duration_ms": 90.0,
+      "end_to_end_ms": 163.7
+    },
+    "recovery_time": {
+      "recovery_time_s": 2.963
+    }
+  },
+  "eval_report": {
+    "ok": true,
+    "exp_id": "test-eval-001",
+    "status": "RUNNING",
+    "evaluated_at": 1793166722.5785308,
+    "scores": {
+      "perception": 0.99,
+      "tolerance": 0.6,
+      "consistency": 0.0,
+      "tracing": 0.0,
+      "overall": 0.397,
+      "grade": "D"
+    },
+    "details": {
+      "perception": {
+        "detected": true,
+        "faulty_service": "fire-control",
+        "confidence": 0.95,
+        "evidence_latency_ms": 163.4,
+        "detection_signal": "k8s_readiness",
+        "score": 0.99,
+        "notes": [
+          "检测到故障",
+          "证据延迟 163.4 ms",
+          "根因 fire-control"
+        ]
+      },
+      "tolerance": {
+        "recovery_time_s": 2.963,
+        "score": 0.6,
+        "notes": [
+          "恢复时间 2.963 s"
+        ]
+      },
+      "consistency": {
+        "base_consistent": null,
+        "divergent": null,
+        "divergent_keys": [],
+        "repair_replicas": 0,
+        "after_consistent": null,
+        "score": 0.0,
+        "notes": []
+      },
+      "tracing": {
+        "span_total": null,
+        "edge_count": null,
+        "verify_ok": null,
+        "score": 0.0,
+        "notes": []
+      }
+    }
+  },
+  "eval_scores": {
+    "perception": 0.99,
+    "tolerance": 0.6,
+    "consistency": 0.0,
+    "tracing": 0.0,
+    "overall": 0.397,
+    "grade": "D"
+  }
+}

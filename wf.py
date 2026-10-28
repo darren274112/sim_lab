@@ -357,6 +357,7 @@ def main():
     import actions.ross  # noqa
     import actions.trace  # noqa
     import actions.state  # noqa
+    import actions.eval  # noqa
 
     if args.command == "run":
         skip = args.skip.split(",") if args.skip else []

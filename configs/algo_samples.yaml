@@ -3,79 +3,75 @@ namespace: sim-test
 vars:
   target_service: fire-control
   scenario: battalion_attack
-  # 故障感知回看窗口：Jaeger trace 回溯范围（覆盖注入前后）
   trace_lookback_s: 900
-
 steps:
-  - id: baseline
-    name: 采集真实基线指标（可观测性底座）
-    action: obs.collect_baseline
-    timeout: 60
-
-  - id: traffic_normal
-    name: 正常态业务流量（生成基线链路 Trace）
-    action: traffic.probe
-    params:
-      requests: 5
-      interval_s: 0.2
-    timeout: 120
-
-  - id: inject
-    name: 注入微服务故障（pod-kill）
-    action: fault.inject_pod_kill
-    params:
-      service: "${vars.target_service}"
-    record_time: inject_time
-    timeout: 60
-
-  - id: traffic_fault
-    name: 故障期间业务流量（产生失败 span，供链路追踪定位）
-    action: traffic.probe
-    params:
-      requests: 8
-      interval_s: 0.3
-    timeout: 180
-
-  - id: detect
-    name: 内容一·深度学习+链路追踪故障感知
-    action: algo.run_detect
-    params:
-      algo: fault_detect_dl
-    timeout: 180
-
-  - id: measure_latency
-    name: 计算故障感知延迟
-    action: measure.detect_latency
-    timeout: 10
-
-  - id: trace
-    name: 采集故障态真实 Trace（服务级指标 + 运行态依赖图）
-    action: trace.collect
-    params:
-      lookback_s: "${vars.trace_lookback_s}"
-      limit: 120
-    timeout: 120
-
-  - id: tolerate
-    name: 内容二·RL 服务降级 + 动态调度容错
-    action: algo.run_tolerate
-    params:
-      algo: fault_tolerate_rl
-    timeout: 120
-
-  - id: measure_recovery
-    name: 计算故障恢复时间
-    action: measure.recovery_time
-    timeout: 10
-
-  - id: consist
-    name: 内容三·模糊-排队协同一致性
-    action: algo.run_consist
-    params:
-      algo: consist_fuzzy_queue
-    timeout: 120
-
-  - id: summary
-    name: 实验汇总
-    action: measure.summary
-    timeout: 10
+- id: baseline
+  name: 采集真实基线指标（可观测性底座）
+  action: obs.collect_baseline
+  timeout: 60
+- id: traffic_normal
+  name: 正常态业务流量（生成基线链路 Trace）
+  action: traffic.probe
+  params:
+    requests: 5
+    interval_s: 0.2
+  timeout: 120
+- id: inject
+  name: 注入微服务故障（pod-kill）
+  action: fault.inject_pod_kill
+  params:
+    service: ${vars.target_service}
+  record_time: inject_time
+  timeout: 60
+- id: traffic_fault
+  name: 故障期间业务流量（产生失败 span，供链路追踪定位）
+  action: traffic.probe
+  params:
+    requests: 8
+    interval_s: 0.3
+  timeout: 180
+- id: detect
+  name: 内容一·深度学习+链路追踪故障感知
+  action: algo.run_detect
+  params:
+    algo: fault_detect_dl
+  timeout: 180
+- id: measure_latency
+  name: 计算故障感知延迟
+  action: measure.detect_latency
+  timeout: 10
+- id: trace
+  name: 采集故障态真实 Trace（服务级指标 + 运行态依赖图）
+  action: trace.collect
+  params:
+    lookback_s: ${vars.trace_lookback_s}
+    limit: 120
+  timeout: 120
+- id: tolerate
+  name: 内容二·RL 服务降级 + 动态调度容错
+  action: algo.run_tolerate
+  params:
+    algo: fault_tolerate_rl
+  timeout: 120
+- id: measure_recovery
+  name: 计算故障恢复时间
+  action: measure.recovery_time
+  timeout: 10
+- id: consist
+  name: 内容三·模糊-排队协同一致性
+  action: algo.run_consist
+  params:
+    algo: consist_fuzzy_queue
+  timeout: 120
+- id: eval
+  name: 仿真结果量化评估
+  action: eval.run
+  timeout: 60
+- id: eval_report
+  name: 输出评估报告
+  action: eval.summary
+  timeout: 30
+- id: summary
+  name: 实验汇总
+  action: measure.summary
+  timeout: 10

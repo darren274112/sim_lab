@@ -1,0 +1,51 @@
+{
+  "nodes": [
+    "comms-service",
+    "entity-service",
+    "env-service",
+    "fire-control",
+    "log-service",
+    "orchestrator",
+    "scenario-mgr",
+    "sensor-service",
+    "sim-bridge",
+    "state-store",
+    "telemetry-gw"
+  ],
+  "edges": [
+    "fire-control->comms-service",
+    "fire-control->sensor-service",
+    "orchestrator->comms-service",
+    "orchestrator->entity-service",
+    "orchestrator->env-service",
+    "orchestrator->fire-control",
+    "orchestrator->log-service",
+    "orchestrator->scenario-mgr",
+    "orchestrator->sensor-service",
+    "orchestrator->sim-bridge",
+    "orchestrator->state-store",
+    "orchestrator->telemetry-gw",
+    "scenario-mgr->log-service",
+    "scenario-mgr->state-store",
+    "sensor-service->entity-service",
+    "sensor-service->env-service"
+  ],
+  "edge_counts": {
+    "orchestrator->scenario-mgr": 78,
+    "orchestrator->entity-service": 39,
+    "orchestrator->comms-service": 39,
+    "orchestrator->sensor-service": 39,
+    "orchestrator->fire-control": 67,
+    "orchestrator->env-service": 39,
+    "orchestrator->log-service": 39,
+    "orchestrator->state-store": 39,
+    "orchestrator->telemetry-gw": 78,
+    "orchestrator->sim-bridge": 39,
+    "scenario-mgr->log-service": 39,
+    "scenario-mgr->state-store": 39,
+    "sensor-service->entity-service": 35,
+    "sensor-service->env-service": 35,
+    "fire-control->sensor-service": 35,
+    "fire-control->comms-service": 35
+  }
+}

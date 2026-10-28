@@ -1,0 +1,62 @@
+{
+  "timestamp": 1793167025.9836385,
+  "namespace": "sim-test",
+  "prometheus_available": true,
+  "services": {
+    "orchestrator": {
+      "cpu": "2m",
+      "memory": "37Mi",
+      "request_rate_per_s": 0.0
+    },
+    "scenario-mgr": {
+      "cpu": "2m",
+      "memory": "35Mi",
+      "request_rate_per_s": 0.0
+    },
+    "entity-service": {
+      "cpu": "2m",
+      "memory": "35Mi",
+      "request_rate_per_s": 0.0
+    },
+    "comms-service": {
+      "cpu": "2m",
+      "memory": "35Mi",
+      "request_rate_per_s": 0.0
+    },
+    "sensor-service": {
+      "cpu": "2m",
+      "memory": "35Mi",
+      "request_rate_per_s": 0.0
+    },
+    "fire-control": {
+      "cpu": "2m",
+      "memory": "34Mi",
+      "request_rate_per_s": 0.0
+    },
+    "env-service": {
+      "cpu": "2m",
+      "memory": "35Mi",
+      "request_rate_per_s": 0.0
+    },
+    "log-service": {
+      "cpu": "2m",
+      "memory": "35Mi",
+      "request_rate_per_s": 0.0
+    },
+    "state-store": {
+      "cpu": "4m",
+      "memory": "35Mi",
+      "request_rate_per_s": 0.6609
+    },
+    "telemetry-gw": {
+      "cpu": "2m",
+      "memory": "35Mi",
+      "request_rate_per_s": 0.0
+    },
+    "sim-bridge": {
+      "cpu": "2m",
+      "memory": "36Mi",
+      "request_rate_per_s": 0.0
+    }
+  }
+}

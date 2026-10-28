@@ -1,124 +1,115 @@
 name: military-consistency
 namespace: sim-test
 timeout: 600
-
-# 状态一致性实验：
-#   1) 复位 3 副本 -> 全量写入（一致）
-#   2) 注入真实 netem（延迟 + 丢包）模拟弱网分区
-#   3) 只写一个副本（制造真实分叉）
-#   4) 模糊-排队算法基于 RTT/负载/分叉事件调整一致性参数
-#   5) 清理故障 -> 主动反熵修复 -> 再次校验（收敛）
 vars:
   scenario: combined_arms
   state_key: mission-state
-
 steps:
-  - id: check_env
-    name: 检查环境
-    action: k8s.check_ready
-    params:
-      services: ["orchestrator", "state-store", "entity-service", "telemetry-gw", "sim-bridge"]
-    timeout: 60
-
-  - id: start_sim
-    name: 启动仿真
-    action: ross.start_sim
-    params:
-      scenario: "${vars.scenario}"
-    timeout: 60
-
-  - id: state_reset
-    name: 清空状态副本（实验基线）
-    action: state.reset
-    timeout: 30
-
-  - id: state_write_base
-    name: 全量写入基线状态
-    action: state.write
-    params:
-      key: "${vars.state_key}"
-      target: all
-      replicate: true
-      value:
-        phase: ready
-        scenario: "${vars.scenario}"
-        tick: 0
-    timeout: 30
-
-  - id: state_verify_base
-    name: 校验基线一致
-    action: state.verify
-    timeout: 30
-
-  - id: inject_net
-    name: 注入网络延迟与丢包（模拟弱网分区）
-    action: fault.inject_netem
-    params:
-      service: state-store
-      delay: 200ms
-      loss: 10%
-    record_time: inject_time
-    timeout: 30
-
-  - id: traffic_under_fault
-    name: 弱网期间业务流量（放大状态访问与 RTT）
-    action: traffic.probe
-    params:
-      requests: 4
-      interval_s: 0.3
-      timeout_s: 6
-    timeout: 120
-
-  - id: state_write_divergent
-    name: 只写单个副本（制造真实分叉）
-    action: state.write
-    params:
-      key: "${vars.state_key}"
-      target: one
-      replicate: false
-      value:
-        phase: updated
-        scenario: "${vars.scenario}"
-        tick: 1
-    timeout: 30
-
-  - id: state_verify_divergent
-    name: 校验副本分叉
-    action: state.verify
-    timeout: 30
-
-  - id: consist
-    name: 内容三·模糊-排队协同一致性决策
-    action: algo.run_consist
-    params:
-      algo: consist_fuzzy_queue
-    timeout: 120
-
-  - id: cleanup_net
-    name: 清理网络规则
-    action: fault.clear_netem
-    timeout: 30
-    always_run: true
-
-  - id: state_repair
-    name: 主动反熵修复（拉取 peer 快照并合并）
-    action: state.repair
-    params:
-      timeout_s: 60
-    timeout: 90
-
-  - id: state_verify_after
-    name: 校验修复后一致
-    action: state.verify
-    timeout: 30
-
-  - id: summary
-    name: 实验汇总
-    action: measure.summary
-    timeout: 10
-
-  - id: cleanup
-    name: 清理环境
-    action: k8s.restore
-    timeout: 60
-    always_run: true
+- id: check_env
+  name: 检查环境
+  action: k8s.check_ready
+  params:
+    services:
+    - orchestrator
+    - state-store
+    - entity-service
+    - telemetry-gw
+    - sim-bridge
+  timeout: 60
+- id: start_sim
+  name: 启动仿真
+  action: ross.start_sim
+  params:
+    scenario: ${vars.scenario}
+  timeout: 60
+- id: state_reset
+  name: 清空状态副本（实验基线）
+  action: state.reset
+  timeout: 30
+- id: state_write_base
+  name: 全量写入基线状态
+  action: state.write
+  params:
+    key: ${vars.state_key}
+    target: all
+    replicate: true
+    value:
+      phase: ready
+      scenario: ${vars.scenario}
+      tick: 0
+  timeout: 30
+- id: state_verify_base
+  name: 校验基线一致
+  action: state.verify
+  timeout: 30
+- id: inject_net
+  name: 注入网络延迟与丢包（模拟弱网分区）
+  action: fault.inject_netem
+  params:
+    service: state-store
+    delay: 200ms
+    loss: 10%
+  record_time: inject_time
+  timeout: 30
+- id: traffic_under_fault
+  name: 弱网期间业务流量（放大状态访问与 RTT）
+  action: traffic.probe
+  params:
+    requests: 4
+    interval_s: 0.3
+    timeout_s: 6
+  timeout: 120
+- id: state_write_divergent
+  name: 只写单个副本（制造真实分叉）
+  action: state.write
+  params:
+    key: ${vars.state_key}
+    target: one
+    replicate: false
+    value:
+      phase: updated
+      scenario: ${vars.scenario}
+      tick: 1
+  timeout: 30
+- id: state_verify_divergent
+  name: 校验副本分叉
+  action: state.verify
+  timeout: 30
+- id: consist
+  name: 内容三·模糊-排队协同一致性决策
+  action: algo.run_consist
+  params:
+    algo: consist_fuzzy_queue
+  timeout: 120
+- id: cleanup_net
+  name: 清理网络规则
+  action: fault.clear_netem
+  timeout: 30
+  always_run: true
+- id: state_repair
+  name: 主动反熵修复（拉取 peer 快照并合并）
+  action: state.repair
+  params:
+    timeout_s: 60
+  timeout: 90
+- id: state_verify_after
+  name: 校验修复后一致
+  action: state.verify
+  timeout: 30
+- id: eval
+  name: 仿真结果量化评估
+  action: eval.run
+  timeout: 60
+- id: eval_report
+  name: 输出评估报告
+  action: eval.summary
+  timeout: 30
+- id: summary
+  name: 实验汇总
+  action: measure.summary
+  timeout: 10
+- id: cleanup
+  name: 清理环境
+  action: k8s.restore
+  timeout: 60
+  always_run: true

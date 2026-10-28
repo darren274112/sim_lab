@@ -1,0 +1,339 @@
+{
+  "exp_id": "test-eval-001",
+  "status": "COMPLETED",
+  "steps": {
+    "check_env": {
+      "id": "check_env",
+      "name": "\u68c0\u67e5K8S\u73af\u5883\u4e0e\u4eff\u771f\u5fae\u670d\u52a1\u72b6\u6001",
+      "status": "SUCCEEDED",
+      "start_time": 1793166717.2468917,
+      "end_time": 1793166717.3953032,
+      "error": null,
+      "result": {
+        "ready": [
+          "orchestrator",
+          "scenario-mgr",
+          "entity-service",
+          "comms-service",
+          "sensor-service",
+          "fire-control",
+          "env-service",
+          "log-service",
+          "state-store",
+          "telemetry-gw",
+          "sim-bridge"
+        ]
+      },
+      "duration": 0.14841151237487793
+    },
+    "ross_ready": {
+      "id": "ross_ready",
+      "name": "\u68c0\u67e5ROSS\u4eff\u771f\u5f15\u64ce\u72b6\u6001",
+      "status": "SUCCEEDED",
+      "start_time": 1793166717.429723,
+      "end_time": 1793166717.4334104,
+      "error": null,
+      "result": {
+        "status": "ready",
+        "engine": "ross"
+      },
+      "duration": 0.0036873817443847656
+    },
+    "baseline": {
+      "id": "baseline",
+      "name": "\u91c7\u96c6\u4eff\u771f\u57fa\u7ebf\u6307\u6807",
+      "status": "SUCCEEDED",
+      "start_time": 1793166717.4567559,
+      "end_time": 1793166718.1906314,
+      "error": null,
+      "result": {
+        "timestamp": 1793166718.1880035,
+        "namespace": "sim-test",
+        "prometheus_available": true,
+        "services": {
+          "orchestrator": {
+            "cpu": "2m",
+            "memory": "36Mi",
+            "request_rate_per_s": 0.0
+          },
+          "scenario-mgr": {
+            "cpu": "2m",
+            "memory": "35Mi",
+            "request_rate_per_s": 0.0
+          },
+          "entity-service": {
+            "cpu": "2m",
+            "memory": "35Mi",
+            "request_rate_per_s": 0.0
+          },
+          "comms-service": {
+            "cpu": "2m",
+            "memory": "35Mi",
+            "request_rate_per_s": 0.0
+          },
+          "sensor-service": {
+            "cpu": "2m",
+            "memory": "35Mi",
+            "request_rate_per_s": 0.0
+          },
+          "fire-control": {
+            "cpu": "2m",
+            "memory": "35Mi",
+            "request_rate_per_s": 0.0
+          },
+          "env-service": {
+            "cpu": "2m",
+            "memory": "35Mi",
+            "request_rate_per_s": 0.0
+          },
+          "log-service": {
+            "cpu": "2m",
+            "memory": "35Mi",
+            "request_rate_per_s": 0.0
+          },
+          "state-store": {
+            "cpu": "4m",
+            "memory": "35Mi",
+            "request_rate_per_s": 0.6696
+          },
+          "telemetry-gw": {
+            "cpu": "2m",
+            "memory": "35Mi",
+            "request_rate_per_s": 0.0
+          },
+          "sim-bridge": {
+            "cpu": "2m",
+            "memory": "36Mi",
+            "request_rate_per_s": 0.0
+          }
+        }
+      },
+      "duration": 0.7338755130767822
+    },
+    "start_sim": {
+      "id": "start_sim",
+      "name": "\u542f\u52a8\u60f3\u5b9a\u4eff\u771f\uff08\u6ce8\u5165ROSS\u8fd0\u884c\u65f6\u6545\u969c\uff09",
+      "status": "SUCCEEDED",
+      "start_time": 1793166718.2037446,
+      "end_time": 1793166719.088284,
+      "error": null,
+      "result": {
+        "status": "started",
+        "ross": {
+          "running": false,
+          "engine": "ross",
+          "mode": "real",
+          "lp_count": 14,
+          "events_processed": 608,
+          "end_time": 20.0,
+          "returncode": 0,
+          "pid": 46,
+          "error": null,
+          "fault": {
+            "type": "lp_crash",
+            "target_lp": 0,
+            "at_time": 3.0,
+            "injected_at": 1793166718.5557296
+          },
+          "finished_at": 1793166719.0389483,
+          "output_tail": [
+            "\tGVT Real Time Interval (sec)                        0.00000000",
+            "\tBatch Size                                                  16",
+            "",
+            "\tForced GVT                                                   0",
+            "\tTotal GVT Computations                                       0",
+            "\tTotal All Reduce Calls                                       0",
+            "\tAverage Reduction / GVT                                   -nan",
+            "=== FAULT REPORT: type=lp_crash target=0 at=3.00, events_dropped=1 ===",
+            "",
+            "=== Simulation Complete (end time 20.0) ==="
+          ]
+        }
+      },
+      "duration": 0.8845393657684326
+    },
+    "inject": {
+      "id": "inject",
+      "name": "\u6ce8\u5165\u6545\u969c\uff08\u6a21\u62df\u706b\u63a7\u670d\u52a1\u5931\u6548\uff09",
+      "status": "SUCCEEDED",
+      "start_time": 1793166719.0941722,
+      "end_time": 1793166719.1238756,
+      "error": null,
+      "result": {
+        "status": "injected",
+        "pod_name": "fire-control-759fc4ff86-brt85",
+        "service": "fire-control",
+        "inject_time": 1793166719.0964358
+      },
+      "duration": 0.029703378677368164
+    },
+    "detect": {
+      "id": "detect",
+      "name": "\u8c03\u7528\u6545\u969c\u611f\u77e5\u7b97\u6cd5\uff08K8S\u72b6\u6001\u611f\u77e5\u57fa\u7ebf\uff09",
+      "status": "SUCCEEDED",
+      "start_time": 1793166719.1318748,
+      "end_time": 1793166719.257609,
+      "error": null,
+      "result": {
+        "detected": true,
+        "detected_at": 1793166719.2575238,
+        "detection_signal": "k8s_readiness",
+        "faulty_service": "fire-control",
+        "confidence": 0.95,
+        "method": "k8s_pod_readiness_polling",
+        "evidence": [
+          "2 pod(s) of 'fire-control' not Ready: ['fire-control-759fc4ff86-brt85', 'fire-control-759fc4ff86-xgb7p']"
+        ],
+        "detect_invoked_at": 1793166719.1678445,
+        "scan_duration_s": 0.09
+      },
+      "duration": 0.1257340908050537
+    },
+    "tolerate": {
+      "id": "tolerate",
+      "name": "\u6267\u884c\u5bb9\u9519\u6062\u590d\uff08\u7b49\u5f85K8S\u81ea\u6108\u5e76\u6d4b\u91cf\u6062\u590d\u65f6\u95f4\uff09",
+      "status": "SUCCEEDED",
+      "start_time": 1793166719.3950233,
+      "end_time": 1793166722.057111,
+      "error": null,
+      "result": {
+        "actions": [],
+        "target": "fire-control",
+        "recovered_at": 1793166722.0570507,
+        "recovery_time_s": 2.963,
+        "strategy": "k8s_self_heal_plus_force_restart",
+        "decision_time": 1793166722.0570595
+      },
+      "duration": 2.6620876789093018
+    },
+    "measure": {
+      "id": "measure",
+      "name": "\u8ba1\u7b97\u6545\u969c\u611f\u77e5\u5ef6\u8fdf",
+      "status": "SUCCEEDED",
+      "start_time": 1793166722.1062934,
+      "end_time": 1793166722.1129925,
+      "error": null,
+      "result": {
+        "inject_time": 1793166719.0941722,
+        "detect_time": 1793166719.2575238,
+        "evidence_at": 1793166719.2575238,
+        "evidence_latency_ms": 163.4,
+        "latency_seconds": 0.16335153579711914,
+        "latency_ms": 163.35153579711914,
+        "raw_evidence_latency_s": 0.163,
+        "conclusion_latency_s": 0.163,
+        "anomaly": false,
+        "detection_signal": "k8s_readiness",
+        "scan_duration_ms": 90.0,
+        "end_to_end_ms": 163.7
+      },
+      "duration": 0.006699085235595703
+    },
+    "measure_recovery": {
+      "id": "measure_recovery",
+      "name": "\u8ba1\u7b97\u6545\u969c\u6062\u590d\u65f6\u95f4",
+      "status": "SUCCEEDED",
+      "start_time": 1793166722.1365583,
+      "end_time": 1793166722.1411765,
+      "error": null,
+      "result": {
+        "recovery_time_s": 2.963
+      },
+      "duration": 0.004618167877197266
+    },
+    "cleanup": {
+      "id": "cleanup",
+      "name": "\u6e05\u7406\u5b9e\u9a8c\u73af\u5883",
+      "status": "SUCCEEDED",
+      "start_time": 1793166722.163234,
+      "end_time": 1793166722.1768618,
+      "error": null,
+      "result": {
+        "status": "restored"
+      },
+      "duration": 0.013627767562866211
+    },
+    "eval": {
+      "id": "eval",
+      "name": "\u4eff\u771f\u7ed3\u679c\u91cf\u5316\u8bc4\u4f30",
+      "status": "SUCCEEDED",
+      "start_time": 1793166722.186041,
+      "end_time": 1793166722.6366074,
+      "error": null,
+      "result": {
+        "ok": true,
+        "exp_id": "test-eval-001",
+        "status": "RUNNING",
+        "evaluated_at": 1793166722.5785308,
+        "scores": {
+          "perception": 0.99,
+          "tolerance": 0.6,
+          "consistency": 0.0,
+          "tracing": 0.0,
+          "overall": 0.397,
+          "grade": "D"
+        },
+        "details": {
+          "perception": {
+            "detected": true,
+            "faulty_service": "fire-control",
+            "confidence": 0.95,
+            "evidence_latency_ms": 163.4,
+            "detection_signal": "k8s_readiness",
+            "score": 0.99,
+            "notes": [
+              "\u68c0\u6d4b\u5230\u6545\u969c",
+              "\u8bc1\u636e\u5ef6\u8fdf 163.4 ms",
+              "\u6839\u56e0 fire-control"
+            ]
+          },
+          "tolerance": {
+            "recovery_time_s": 2.963,
+            "score": 0.6,
+            "notes": [
+              "\u6062\u590d\u65f6\u95f4 2.963 s"
+            ]
+          },
+          "consistency": {
+            "base_consistent": null,
+            "divergent": null,
+            "divergent_keys": [],
+            "repair_replicas": 0,
+            "after_consistent": null,
+            "score": 0.0,
+            "notes": []
+          },
+          "tracing": {
+            "span_total": null,
+            "edge_count": null,
+            "verify_ok": null,
+            "score": 0.0,
+            "notes": []
+          }
+        }
+      },
+      "duration": 0.45056629180908203
+    },
+    "eval_report": {
+      "id": "eval_report",
+      "name": "\u8f93\u51fa\u8bc4\u4f30\u62a5\u544a",
+      "status": "SUCCEEDED",
+      "start_time": 1793166722.7197285,
+      "end_time": 1793166722.7455935,
+      "error": null,
+      "result": {
+        "ok": true,
+        "scores": {
+          "perception": 0.99,
+          "tolerance": 0.6,
+          "consistency": 0.0,
+          "tracing": 0.0,
+          "overall": 0.397,
+          "grade": "D"
+        }
+      },
+      "duration": 0.02586507797241211
+    }
+  },
+  "updated_at": "2026-10-28T05:52:02.796959"
+}

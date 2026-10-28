@@ -17,7 +17,7 @@ OBSERVABILITY="${OBSERVABILITY:-1}"
 SERVICES=(
   orchestrator scenario-mgr entity-service comms-service sensor-service
   fire-control env-service log-service state-store telemetry-gw sim-bridge
-  api-gateway auth-service config-service notification-service platform-service chaos-service
+  api-gateway auth-service config-service notification-service platform-service chaos-service eval-service
 )
 
 if ! command -v kubectl >/dev/null 2>&1; then

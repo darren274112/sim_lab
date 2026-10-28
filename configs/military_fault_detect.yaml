@@ -1,80 +1,83 @@
 name: military-fault-detect
 namespace: sim-test
 timeout: 600
-
 vars:
   target_service: fire-control
   scenario: battalion_attack
-  # ROSS 运行时故障注入参数：由 ross.start_sim 在启动仿真时透传给 sim-bridge。
-  # type: lp_crash（目标 LP 在 at_time 后宕机，停止产生下游事件）
-  #       comm_loss（通信 LP 在 at_time 后断链，COMM_MSG 全部丢弃）
-  # target_lp: 单位 LP 的 gid（0..units-1）；comm_loss 时填通信 LP 的 gid（= units+2）
-  # at_time: 仿真时间轴上的触发时刻（绝对时刻，单位与 --end 一致）
   ross_fault:
     type: lp_crash
     target_lp: 0
     at_time: 3.0
-
 steps:
-  - id: check_env
-    name: 检查K8S环境与仿真微服务状态
-    action: k8s.check_ready
-    params:
-      services: ["orchestrator", "scenario-mgr", "entity-service", "comms-service", "sensor-service", "fire-control", "env-service", "log-service", "state-store", "telemetry-gw", "sim-bridge"]
-    timeout: 60
-
-  - id: ross_ready
-    name: 检查ROSS仿真引擎状态
-    action: ross.check_ready
-    timeout: 30
-
-  - id: baseline
-    name: 采集仿真基线指标
-    action: obs.collect_baseline
-    timeout: 30
-
-  - id: start_sim
-    name: 启动想定仿真（注入ROSS运行时故障）
-    action: ross.start_sim
-    params:
-      scenario: "${vars.scenario}"
-      fault: "${vars.ross_fault}"
-    timeout: 60
-
-  - id: inject
-    name: 注入故障（模拟火控服务失效）
-    action: fault.inject_pod_kill
-    params:
-      service: "${vars.target_service}"
-    record_time: inject_time
-    timeout: 30
-
-  - id: detect
-    name: 调用故障感知算法（K8S状态感知基线）
-    action: algo.run_detect
-    params:
-      algo: fault_detect_baseline
-    timeout: 120
-
-  - id: tolerate
-    name: 执行容错恢复（等待K8S自愈并测量恢复时间）
-    action: algo.run_tolerate
-    params:
-      algo: fault_tolerate_baseline
-    timeout: 120
-
-  - id: measure
-    name: 计算故障感知延迟
-    action: measure.detect_latency
-    timeout: 10
-
-  - id: measure_recovery
-    name: 计算故障恢复时间
-    action: measure.recovery_time
-    timeout: 10
-
-  - id: cleanup
-    name: 清理实验环境
-    action: k8s.restore
-    timeout: 60
-    always_run: true
+- id: check_env
+  name: 检查K8S环境与仿真微服务状态
+  action: k8s.check_ready
+  params:
+    services:
+    - orchestrator
+    - scenario-mgr
+    - entity-service
+    - comms-service
+    - sensor-service
+    - fire-control
+    - env-service
+    - log-service
+    - state-store
+    - telemetry-gw
+    - sim-bridge
+  timeout: 60
+- id: ross_ready
+  name: 检查ROSS仿真引擎状态
+  action: ross.check_ready
+  timeout: 30
+- id: baseline
+  name: 采集仿真基线指标
+  action: obs.collect_baseline
+  timeout: 30
+- id: start_sim
+  name: 启动想定仿真（注入ROSS运行时故障）
+  action: ross.start_sim
+  params:
+    scenario: ${vars.scenario}
+    fault: ${vars.ross_fault}
+  timeout: 60
+- id: inject
+  name: 注入故障（模拟火控服务失效）
+  action: fault.inject_pod_kill
+  params:
+    service: ${vars.target_service}
+  record_time: inject_time
+  timeout: 30
+- id: detect
+  name: 调用故障感知算法（K8S状态感知基线）
+  action: algo.run_detect
+  params:
+    algo: fault_detect_baseline
+  timeout: 120
+- id: tolerate
+  name: 执行容错恢复（等待K8S自愈并测量恢复时间）
+  action: algo.run_tolerate
+  params:
+    algo: fault_tolerate_baseline
+  timeout: 120
+- id: measure
+  name: 计算故障感知延迟
+  action: measure.detect_latency
+  timeout: 10
+- id: measure_recovery
+  name: 计算故障恢复时间
+  action: measure.recovery_time
+  timeout: 10
+- id: cleanup
+  name: 清理实验环境
+  action: k8s.restore
+  timeout: 60
+  always_run: true
+- id: eval
+  name: 仿真结果量化评估
+  action: eval.run
+  timeout: 60
+- id: eval_report
+  name: 输出评估报告
+  action: eval.summary
+  timeout: 30

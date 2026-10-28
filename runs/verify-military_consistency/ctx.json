@@ -1,0 +1,750 @@
+{
+  "exp_id": "verify-military_consistency",
+  "config": {
+    "name": "military-consistency",
+    "namespace": "sim-test",
+    "timeout": 600,
+    "vars": {
+      "scenario": "combined_arms",
+      "state_key": "mission-state"
+    },
+    "steps": [
+      {
+        "id": "check_env",
+        "name": "检查环境",
+        "action": "k8s.check_ready",
+        "params": {
+          "services": [
+            "orchestrator",
+            "state-store",
+            "entity-service",
+            "telemetry-gw",
+            "sim-bridge"
+          ]
+        },
+        "timeout": 60
+      },
+      {
+        "id": "start_sim",
+        "name": "启动仿真",
+        "action": "ross.start_sim",
+        "params": {
+          "scenario": "${vars.scenario}"
+        },
+        "timeout": 60
+      },
+      {
+        "id": "state_reset",
+        "name": "清空状态副本（实验基线）",
+        "action": "state.reset",
+        "timeout": 30
+      },
+      {
+        "id": "state_write_base",
+        "name": "全量写入基线状态",
+        "action": "state.write",
+        "params": {
+          "key": "${vars.state_key}",
+          "target": "all",
+          "replicate": true,
+          "value": {
+            "phase": "ready",
+            "scenario": "${vars.scenario}",
+            "tick": 0
+          }
+        },
+        "timeout": 30
+      },
+      {
+        "id": "state_verify_base",
+        "name": "校验基线一致",
+        "action": "state.verify",
+        "timeout": 30
+      },
+      {
+        "id": "inject_net",
+        "name": "注入网络延迟与丢包（模拟弱网分区）",
+        "action": "fault.inject_netem",
+        "params": {
+          "service": "state-store",
+          "delay": "200ms",
+          "loss": "10%"
+        },
+        "record_time": "inject_time",
+        "timeout": 30
+      },
+      {
+        "id": "traffic_under_fault",
+        "name": "弱网期间业务流量（放大状态访问与 RTT）",
+        "action": "traffic.probe",
+        "params": {
+          "requests": 4,
+          "interval_s": 0.3,
+          "timeout_s": 6
+        },
+        "timeout": 120
+      },
+      {
+        "id": "state_write_divergent",
+        "name": "只写单个副本（制造真实分叉）",
+        "action": "state.write",
+        "params": {
+          "key": "${vars.state_key}",
+          "target": "one",
+          "replicate": false,
+          "value": {
+            "phase": "updated",
+            "scenario": "${vars.scenario}",
+            "tick": 1
+          }
+        },
+        "timeout": 30
+      },
+      {
+        "id": "state_verify_divergent",
+        "name": "校验副本分叉",
+        "action": "state.verify",
+        "timeout": 30
+      },
+      {
+        "id": "consist",
+        "name": "内容三·模糊-排队协同一致性决策",
+        "action": "algo.run_consist",
+        "params": {
+          "algo": "consist_fuzzy_queue"
+        },
+        "timeout": 120
+      },
+      {
+        "id": "cleanup_net",
+        "name": "清理网络规则",
+        "action": "fault.clear_netem",
+        "timeout": 30,
+        "always_run": true
+      },
+      {
+        "id": "state_repair",
+        "name": "主动反熵修复（拉取 peer 快照并合并）",
+        "action": "state.repair",
+        "params": {
+          "timeout_s": 60
+        },
+        "timeout": 90
+      },
+      {
+        "id": "state_verify_after",
+        "name": "校验修复后一致",
+        "action": "state.verify",
+        "timeout": 30
+      },
+      {
+        "id": "summary",
+        "name": "实验汇总",
+        "action": "measure.summary",
+        "timeout": 10
+      },
+      {
+        "id": "cleanup",
+        "name": "清理环境",
+        "action": "k8s.restore",
+        "timeout": 60,
+        "always_run": true
+      }
+    ]
+  },
+  "vars": {
+    "scenario": "combined_arms",
+    "state_key": "mission-state"
+  },
+  "start_time": 1793076135.982258,
+  "timestamps": {
+    "inject": 1793076138.1151264,
+    "inject_time": 1793076138.1020827
+  },
+  "run_dir": "runs/verify-military_consistency",
+  "ross_running": true,
+  "ross_result": {
+    "start": {
+      "started": true,
+      "scenario": "battalion_attack",
+      "mode": "real",
+      "fault": {
+        "type": "lp_crash",
+        "target_lp": 0,
+        "at_time": 3.0,
+        "injected_at": 1793067693.3860526
+      },
+      "command": [
+        "/app/ross-sim/build/mil_sim",
+        "--synch=1",
+        "--end=20.0",
+        "--units=10"
+      ],
+      "log": "/tmp/ross-sim.log"
+    },
+    "status": {
+      "running": false,
+      "engine": "ross",
+      "mode": "real",
+      "lp_count": 14,
+      "events_processed": 608,
+      "end_time": 20.0,
+      "returncode": 0,
+      "pid": 34,
+      "error": null,
+      "fault": {
+        "type": "lp_crash",
+        "target_lp": 0,
+        "at_time": 3.0,
+        "injected_at": 1793067693.3860526
+      },
+      "finished_at": 1793076136.575894,
+      "output_tail": [
+        "\tGVT Real Time Interval (sec)                        0.00000000",
+        "\tBatch Size                                                  16",
+        "",
+        "\tForced GVT                                                   0",
+        "\tTotal GVT Computations                                       0",
+        "\tTotal All Reduce Calls                                       0",
+        "\tAverage Reduction / GVT                                   -nan",
+        "=== FAULT REPORT: type=lp_crash target=0 at=3.00, events_dropped=1 ===",
+        "",
+        "=== Simulation Complete (end time 20.0) ==="
+      ]
+    },
+    "fault": null
+  },
+  "ross_status": {
+    "running": false,
+    "engine": "ross",
+    "mode": "real",
+    "lp_count": 14,
+    "events_processed": 608,
+    "end_time": 20.0,
+    "returncode": 0,
+    "pid": 34,
+    "error": null,
+    "fault": {
+      "type": "lp_crash",
+      "target_lp": 0,
+      "at_time": 3.0,
+      "injected_at": 1793067693.3860526
+    },
+    "finished_at": 1793076136.575894,
+    "output_tail": [
+      "\tGVT Real Time Interval (sec)                        0.00000000",
+      "\tBatch Size                                                  16",
+      "",
+      "\tForced GVT                                                   0",
+      "\tTotal GVT Computations                                       0",
+      "\tTotal All Reduce Calls                                       0",
+      "\tAverage Reduction / GVT                                   -nan",
+      "=== FAULT REPORT: type=lp_crash target=0 at=3.00, events_dropped=1 ===",
+      "",
+      "=== Simulation Complete (end time 20.0) ==="
+    ]
+  },
+  "ross_fault": null,
+  "state_ops": [
+    {
+      "op": "write",
+      "key": "mission-state",
+      "targets": 3,
+      "replicate": true,
+      "replicas": [
+        {
+          "key": "mission-state",
+          "version": 1,
+          "origin": "state-store-7c6b57c6f5-j58nz",
+          "replica": "state-store-7c6b57c6f5-j58nz",
+          "replicated": true,
+          "ip": "10.42.0.150"
+        },
+        {
+          "key": "mission-state",
+          "version": 1,
+          "origin": "state-store-7c6b57c6f5-w75s4",
+          "replica": "state-store-7c6b57c6f5-w75s4",
+          "replicated": true,
+          "ip": "10.42.0.151"
+        },
+        {
+          "key": "mission-state",
+          "version": 2,
+          "origin": "state-store-7c6b57c6f5-c5h48",
+          "replica": "state-store-7c6b57c6f5-c5h48",
+          "replicated": true,
+          "ip": "10.42.0.152"
+        }
+      ],
+      "timestamp": 1793076137.719822
+    },
+    {
+      "op": "write",
+      "key": "mission-state",
+      "targets": 1,
+      "replicate": false,
+      "replicas": [
+        {
+          "key": "mission-state",
+          "version": 3,
+          "origin": "state-store-7c6b57c6f5-j58nz",
+          "replica": "state-store-7c6b57c6f5-j58nz",
+          "replicated": false,
+          "ip": "10.42.0.150"
+        }
+      ],
+      "timestamp": 1793076145.4009795
+    },
+    {
+      "op": "repair",
+      "replicas": 3,
+      "before": [
+        {
+          "ip": "10.42.0.150",
+          "result": {
+            "replica": "state-store-7c6b57c6f5-j58nz",
+            "consistent": false,
+            "digest": "6c4c8bd92e9efd44",
+            "peers": {
+              "http://10.42.0.151:8080": {
+                "reachable": true,
+                "replica": "state-store-7c6b57c6f5-w75s4",
+                "digest": "fa25b4577b423751",
+                "keys": 2
+              },
+              "http://10.42.0.152:8080": {
+                "reachable": true,
+                "replica": "state-store-7c6b57c6f5-c5h48",
+                "digest": "6c4c8bd92e9efd44",
+                "keys": 2
+              }
+            },
+            "divergent_keys": [
+              "battalion_attack",
+              "mission-state"
+            ],
+            "timestamp": 1793076151.0815232
+          }
+        },
+        {
+          "ip": "10.42.0.151",
+          "result": {
+            "replica": "state-store-7c6b57c6f5-w75s4",
+            "consistent": false,
+            "digest": "fa25b4577b423751",
+            "peers": {
+              "http://10.42.0.150:8080": {
+                "reachable": true,
+                "replica": "state-store-7c6b57c6f5-j58nz",
+                "digest": "6c4c8bd92e9efd44",
+                "keys": 2
+              },
+              "http://10.42.0.152:8080": {
+                "reachable": true,
+                "replica": "state-store-7c6b57c6f5-c5h48",
+                "digest": "6c4c8bd92e9efd44",
+                "keys": 2
+              }
+            },
+            "divergent_keys": [
+              "battalion_attack",
+              "mission-state"
+            ],
+            "timestamp": 1793076151.0891354
+          }
+        },
+        {
+          "ip": "10.42.0.152",
+          "result": {
+            "replica": "state-store-7c6b57c6f5-c5h48",
+            "consistent": false,
+            "digest": "6c4c8bd92e9efd44",
+            "peers": {
+              "http://10.42.0.151:8080": {
+                "reachable": true,
+                "replica": "state-store-7c6b57c6f5-w75s4",
+                "digest": "fa25b4577b423751",
+                "keys": 2
+              },
+              "http://10.42.0.150:8080": {
+                "reachable": true,
+                "replica": "state-store-7c6b57c6f5-j58nz",
+                "digest": "6c4c8bd92e9efd44",
+                "keys": 2
+              }
+            },
+            "divergent_keys": [
+              "battalion_attack",
+              "mission-state"
+            ],
+            "timestamp": 1793076151.0959518
+          }
+        }
+      ],
+      "sync": [
+        {
+          "ip": "10.42.0.150",
+          "result": {
+            "replica": "state-store-7c6b57c6f5-j58nz",
+            "merged": 0,
+            "errors": [],
+            "digest": "6c4c8bd92e9efd44",
+            "timestamp": 1793076151.101477
+          }
+        },
+        {
+          "ip": "10.42.0.151",
+          "result": {
+            "replica": "state-store-7c6b57c6f5-w75s4",
+            "merged": 2,
+            "errors": [],
+            "digest": "6c4c8bd92e9efd44",
+            "timestamp": 1793076151.109031
+          }
+        },
+        {
+          "ip": "10.42.0.152",
+          "result": {
+            "replica": "state-store-7c6b57c6f5-c5h48",
+            "merged": 0,
+            "errors": [],
+            "digest": "6c4c8bd92e9efd44",
+            "timestamp": 1793076151.1158073
+          }
+        }
+      ],
+      "after": [
+        {
+          "ip": "10.42.0.150",
+          "result": {
+            "replica": "state-store-7c6b57c6f5-j58nz",
+            "consistent": true,
+            "digest": "6c4c8bd92e9efd44",
+            "peers": {
+              "http://10.42.0.151:8080": {
+                "reachable": true,
+                "replica": "state-store-7c6b57c6f5-w75s4",
+                "digest": "6c4c8bd92e9efd44",
+                "keys": 2
+              },
+              "http://10.42.0.152:8080": {
+                "reachable": true,
+                "replica": "state-store-7c6b57c6f5-c5h48",
+                "digest": "6c4c8bd92e9efd44",
+                "keys": 2
+              }
+            },
+            "divergent_keys": [],
+            "timestamp": 1793076151.124003
+          }
+        },
+        {
+          "ip": "10.42.0.151",
+          "result": {
+            "replica": "state-store-7c6b57c6f5-w75s4",
+            "consistent": true,
+            "digest": "6c4c8bd92e9efd44",
+            "peers": {
+              "http://10.42.0.150:8080": {
+                "reachable": true,
+                "replica": "state-store-7c6b57c6f5-j58nz",
+                "digest": "6c4c8bd92e9efd44",
+                "keys": 2
+              },
+              "http://10.42.0.152:8080": {
+                "reachable": true,
+                "replica": "state-store-7c6b57c6f5-c5h48",
+                "digest": "6c4c8bd92e9efd44",
+                "keys": 2
+              }
+            },
+            "divergent_keys": [],
+            "timestamp": 1793076151.130063
+          }
+        },
+        {
+          "ip": "10.42.0.152",
+          "result": {
+            "replica": "state-store-7c6b57c6f5-c5h48",
+            "consistent": true,
+            "digest": "6c4c8bd92e9efd44",
+            "peers": {
+              "http://10.42.0.150:8080": {
+                "reachable": true,
+                "replica": "state-store-7c6b57c6f5-j58nz",
+                "digest": "6c4c8bd92e9efd44",
+                "keys": 2
+              },
+              "http://10.42.0.151:8080": {
+                "reachable": true,
+                "replica": "state-store-7c6b57c6f5-w75s4",
+                "digest": "6c4c8bd92e9efd44",
+                "keys": 2
+              }
+            },
+            "divergent_keys": [],
+            "timestamp": 1793076151.1352086
+          }
+        }
+      ],
+      "timestamp": 1793076151.16517
+    }
+  ],
+  "state_verify": {
+    "replicas": [
+      {
+        "ip": "10.42.0.150",
+        "replica": "state-store-7c6b57c6f5-j58nz",
+        "digest": "6c4c8bd92e9efd44",
+        "keys": 2
+      },
+      {
+        "ip": "10.42.0.151",
+        "replica": "state-store-7c6b57c6f5-w75s4",
+        "digest": "6c4c8bd92e9efd44",
+        "keys": 2
+      },
+      {
+        "ip": "10.42.0.152",
+        "replica": "state-store-7c6b57c6f5-c5h48",
+        "digest": "6c4c8bd92e9efd44",
+        "keys": 2
+      }
+    ],
+    "unreachable": [],
+    "consistent": true,
+    "divergent_keys": [],
+    "per_key": {},
+    "timestamp": 1793076151.18
+  },
+  "metrics": {
+    "state_consistency": {
+      "consistent": true,
+      "divergent_keys": [],
+      "replicas": 3,
+      "unreachable": 0
+    },
+    "consistency": {
+      "state": "TRIGGERED",
+      "triggered_events": [
+        "network_partition_suspected",
+        "data_update_burst",
+        "state_divergence"
+      ],
+      "consistency_level": "strong",
+      "sync_interval_s": 0.1,
+      "consistency_strength": 0.85,
+      "event_adjustments": [
+        "network_partition -> timeout raised to >=300ms",
+        "data_update_burst -> sync_interval capped at 0.20s",
+        "state_divergence(battalion_attack,mission-state) -> sync<=0.10s, strength>=0.85"
+      ],
+      "mm1_wait_s": 0.0048,
+      "observed_divergent_keys": [
+        "battalion_attack",
+        "mission-state"
+      ],
+      "observed_consistent": false
+    }
+  },
+  "inject_time": 1793076138.1020827,
+  "netem_rules": [],
+  "fault_info": {
+    "type": "netem",
+    "service": "state-store",
+    "delay": "200ms",
+    "loss": "10%",
+    "time": 1793076138.1151264,
+    "rules": [
+      {
+        "service": "state-store",
+        "pod": "state-store-7c6b57c6f5-c5h48",
+        "pid": 172719,
+        "iface": "eth0",
+        "delay": "200ms",
+        "loss": "10%",
+        "applied_at": 1793076138.1151264
+      },
+      {
+        "service": "state-store",
+        "pod": "state-store-7c6b57c6f5-j58nz",
+        "pid": 170696,
+        "iface": "eth0",
+        "delay": "200ms",
+        "loss": "10%",
+        "applied_at": 1793076138.1151264
+      },
+      {
+        "service": "state-store",
+        "pod": "state-store-7c6b57c6f5-w75s4",
+        "pid": 171473,
+        "iface": "eth0",
+        "delay": "200ms",
+        "loss": "10%",
+        "applied_at": 1793076138.1151264
+      }
+    ]
+  },
+  "traffic": [
+    {
+      "requests": 4,
+      "engaged": 4,
+      "degraded_or_failed": 0,
+      "last": [
+        {
+          "i": 1,
+          "status": "engaged",
+          "fire_control": "ok"
+        },
+        {
+          "i": 2,
+          "status": "engaged",
+          "fire_control": "ok"
+        },
+        {
+          "i": 3,
+          "status": "engaged",
+          "fire_control": "ok"
+        }
+      ],
+      "timestamp": 1793076143.547843
+    }
+  ],
+  "algorithm_result": {
+    "state": "TRIGGERED",
+    "triggered_events": [
+      "network_partition_suspected",
+      "data_update_burst",
+      "state_divergence"
+    ],
+    "monitor": {
+      "avg_cluster_cpu_m": 11.1,
+      "rtt_s": 0.4034,
+      "rtt_source": "probe",
+      "rtt_samples_s": [
+        1.2896,
+        0.6633,
+        0.4034
+      ],
+      "total_request_rate": 8.9652,
+      "delay_norm": 1.0,
+      "load_norm": 0.037
+    },
+    "fuzzy": {
+      "sync_interval_s": 0.1,
+      "consistency_strength": 0.85,
+      "timeout_ms": 300.0,
+      "consistency_level": "strong"
+    },
+    "queue_mm1": {
+      "rho": 0.186,
+      "wait_s": 0.0048,
+      "stable": true
+    },
+    "fuzzy_response_surface": [
+      {
+        "delay_norm": 0.1,
+        "load_norm": 0.1,
+        "sync_interval_s": 0.05,
+        "consistency_level": "strong",
+        "consistency_strength": 0.92,
+        "timeout_ms": 50.0,
+        "mm1_wait_s": 0.0178
+      },
+      {
+        "delay_norm": 0.1,
+        "load_norm": 0.5,
+        "sync_interval_s": 0.1,
+        "consistency_level": "strong",
+        "consistency_strength": 0.8,
+        "timeout_ms": 80.0,
+        "mm1_wait_s": 0.16
+      },
+      {
+        "delay_norm": 0.1,
+        "load_norm": 0.9,
+        "sync_interval_s": 0.2,
+        "consistency_level": "balanced",
+        "consistency_strength": 0.65,
+        "timeout_ms": 120.0,
+        "mm1_wait_s": 1.8
+      },
+      {
+        "delay_norm": 0.5,
+        "load_norm": 0.1,
+        "sync_interval_s": 0.1,
+        "consistency_level": "strong",
+        "consistency_strength": 0.8,
+        "timeout_ms": 100.0,
+        "mm1_wait_s": 0.0178
+      },
+      {
+        "delay_norm": 0.5,
+        "load_norm": 0.5,
+        "sync_interval_s": 0.3,
+        "consistency_level": "balanced",
+        "consistency_strength": 0.55,
+        "timeout_ms": 150.0,
+        "mm1_wait_s": 0.16
+      },
+      {
+        "delay_norm": 0.5,
+        "load_norm": 0.9,
+        "sync_interval_s": 0.5,
+        "consistency_level": "balanced",
+        "consistency_strength": 0.45,
+        "timeout_ms": 250.0,
+        "mm1_wait_s": 1.8
+      },
+      {
+        "delay_norm": 0.9,
+        "load_norm": 0.1,
+        "sync_interval_s": 0.3,
+        "consistency_level": "balanced",
+        "consistency_strength": 0.5,
+        "timeout_ms": 300.0,
+        "mm1_wait_s": 0.0178
+      },
+      {
+        "delay_norm": 0.9,
+        "load_norm": 0.5,
+        "sync_interval_s": 0.6,
+        "consistency_level": "eventual",
+        "consistency_strength": 0.4,
+        "timeout_ms": 380.0,
+        "mm1_wait_s": 0.16
+      },
+      {
+        "delay_norm": 0.9,
+        "load_norm": 0.9,
+        "sync_interval_s": 1.0,
+        "consistency_level": "eventual",
+        "consistency_strength": 0.3,
+        "timeout_ms": 450.0,
+        "mm1_wait_s": 1.8
+      }
+    ],
+    "base_fuzzy_params": {
+      "sync_interval_s": 0.3,
+      "consistency_strength": 0.55,
+      "timeout_ms": 150.0
+    },
+    "event_adjustments": [
+      "network_partition -> timeout raised to >=300ms",
+      "data_update_burst -> sync_interval capped at 0.20s",
+      "state_divergence(battalion_attack,mission-state) -> sync<=0.10s, strength>=0.85"
+    ],
+    "faulty_services": [],
+    "state_consistency": {
+      "observed_consistent": false,
+      "divergent_keys": [
+        "battalion_attack",
+        "mission-state"
+      ],
+      "replicas": 3
+    },
+    "decision_time": 1793076150.6150224,
+    "adapt_duration_s": 3.314
+  }
+}

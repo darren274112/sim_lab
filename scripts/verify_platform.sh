@@ -61,7 +61,7 @@ done
 section "Service 端点"
 EXPECTED=(orchestrator scenario-mgr entity-service comms-service sensor-service
   fire-control env-service log-service state-store telemetry-gw sim-bridge
-  api-gateway auth-service config-service notification-service platform-service chaos-service)
+  api-gateway auth-service config-service notification-service platform-service chaos-service eval-service)
 for svc in "${EXPECTED[@]}"; do
   if ! kubectl -n "$NS" get svc "$svc" >/dev/null 2>&1; then
     bad "缺少 Service: $svc"
@@ -100,7 +100,7 @@ def get(url, timeout=4):
 report = {"checks": {}, "errors": []}
 for svc in ["orchestrator", "fire-control", "state-store", "api-gateway",
             "auth-service", "config-service", "notification-service",
-            "platform-service", "chaos-service"]:
+            "platform-service", "chaos-service", "eval-service"]:
     try:
         st, _ = get("http://%s:8080/healthz" % svc, 3)
         report["checks"][svc] = st
@@ -141,7 +141,7 @@ PY
   HTTP_JSON=$(echo "$HTTP_OUT" | tail -n1)
   info "$HTTP_JSON"
   for svc in orchestrator fire-control state-store api-gateway auth-service \
-             config-service notification-service platform-service chaos-service; do
+             config-service notification-service platform-service chaos-service eval-service; do
     st=$(echo "$HTTP_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('checks',{}).get('$svc'))" 2>/dev/null)
     if [[ "$st" == "200" ]]; then
       ok "$svc /healthz = 200"

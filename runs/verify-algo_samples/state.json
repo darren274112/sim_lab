@@ -1,0 +1,1088 @@
+{
+  "exp_id": "verify-algo_samples",
+  "status": "COMPLETED",
+  "steps": {
+    "baseline": {
+      "id": "baseline",
+      "name": "\u91c7\u96c6\u771f\u5b9e\u57fa\u7ebf\u6307\u6807\uff08\u53ef\u89c2\u6d4b\u6027\u5e95\u5ea7\uff09",
+      "status": "SUCCEEDED",
+      "start_time": 1793076111.2922566,
+      "end_time": 1793076111.8735807,
+      "error": null,
+      "result": {
+        "timestamp": 1793076111.8694751,
+        "namespace": "sim-test",
+        "prometheus_available": true,
+        "services": {
+          "orchestrator": {
+            "cpu": "31m",
+            "memory": "45Mi",
+            "request_rate_per_s": 0.2261
+          },
+          "scenario-mgr": {
+            "cpu": "4m",
+            "memory": "35Mi",
+            "request_rate_per_s": 0.4522
+          },
+          "entity-service": {
+            "cpu": "2m",
+            "memory": "35Mi",
+            "request_rate_per_s": 0.4348
+          },
+          "comms-service": {
+            "cpu": "2m",
+            "memory": "36Mi",
+            "request_rate_per_s": 0.4348
+          },
+          "sensor-service": {
+            "cpu": "6m",
+            "memory": "35Mi",
+            "request_rate_per_s": 0.4348
+          },
+          "fire-control": {
+            "cpu": "n/a",
+            "memory": "n/a",
+            "request_rate_per_s": 0.113
+          },
+          "env-service": {
+            "cpu": "3m",
+            "memory": "35Mi",
+            "request_rate_per_s": 0.4348
+          },
+          "log-service": {
+            "cpu": "5m",
+            "memory": "35Mi",
+            "request_rate_per_s": 0.4522
+          },
+          "state-store": {
+            "cpu": "7m",
+            "memory": "35Mi",
+            "request_rate_per_s": 0.7652
+          },
+          "telemetry-gw": {
+            "cpu": "3m",
+            "memory": "35Mi",
+            "request_rate_per_s": 0.4522
+          },
+          "sim-bridge": {
+            "cpu": "3m",
+            "memory": "36Mi",
+            "request_rate_per_s": 0.2261
+          }
+        }
+      },
+      "duration": 0.5813241004943848
+    },
+    "traffic_normal": {
+      "id": "traffic_normal",
+      "name": "\u6b63\u5e38\u6001\u4e1a\u52a1\u6d41\u91cf\uff08\u751f\u6210\u57fa\u7ebf\u94fe\u8def Trace\uff09",
+      "status": "SUCCEEDED",
+      "start_time": 1793076111.888534,
+      "end_time": 1793076113.630525,
+      "error": null,
+      "result": {
+        "requests": 5,
+        "engaged": 5,
+        "degraded_or_failed": 0,
+        "last": [
+          {
+            "i": 2,
+            "status": "engaged",
+            "fire_control": "ok"
+          },
+          {
+            "i": 3,
+            "status": "engaged",
+            "fire_control": "ok"
+          },
+          {
+            "i": 4,
+            "status": "engaged",
+            "fire_control": "ok"
+          }
+        ],
+        "timestamp": 1793076113.6304836
+      },
+      "duration": 1.7419910430908203
+    },
+    "inject": {
+      "id": "inject",
+      "name": "\u6ce8\u5165\u5fae\u670d\u52a1\u6545\u969c\uff08pod-kill\uff09",
+      "status": "SUCCEEDED",
+      "start_time": 1793076113.6377296,
+      "end_time": 1793076113.7056446,
+      "error": null,
+      "result": {
+        "status": "injected",
+        "pod_name": "fire-control-55f6994d86-n4t84",
+        "service": "fire-control",
+        "inject_time": 1793076113.6426234
+      },
+      "duration": 0.06791496276855469
+    },
+    "traffic_fault": {
+      "id": "traffic_fault",
+      "name": "\u6545\u969c\u671f\u95f4\u4e1a\u52a1\u6d41\u91cf\uff08\u4ea7\u751f\u5931\u8d25 span\uff0c\u4f9b\u94fe\u8def\u8ffd\u8e2a\u5b9a\u4f4d\uff09",
+      "status": "SUCCEEDED",
+      "start_time": 1793076113.7095263,
+      "end_time": 1793076120.1669374,
+      "error": null,
+      "result": {
+        "requests": 8,
+        "engaged": 6,
+        "degraded_or_failed": 2,
+        "last": [
+          {
+            "i": 5,
+            "status": "engaged",
+            "fire_control": "ok"
+          },
+          {
+            "i": 6,
+            "status": "engaged",
+            "fire_control": "ok"
+          },
+          {
+            "i": 7,
+            "status": "engaged",
+            "fire_control": "ok"
+          }
+        ],
+        "timestamp": 1793076120.1668935
+      },
+      "duration": 6.457411050796509
+    },
+    "detect": {
+      "id": "detect",
+      "name": "\u5185\u5bb9\u4e00\u00b7\u6df1\u5ea6\u5b66\u4e60+\u94fe\u8def\u8ffd\u8e2a\u6545\u969c\u611f\u77e5",
+      "status": "SUCCEEDED",
+      "start_time": 1793076120.1747234,
+      "end_time": 1793076129.5022452,
+      "error": null,
+      "result": {
+        "detected": true,
+        "detected_at": 1793076114.193,
+        "detection_signal": "trace_error",
+        "faulty_service": "fire-control",
+        "confidence": 0.977,
+        "method": "pca_autoencoder_anomaly + trace_graph_bayesian_localization",
+        "anomaly_scores": {
+          "orchestrator": {
+            "pca_error": 0.078,
+            "ae_error": 0.0046,
+            "attention_error": 0.0038,
+            "composite": 0.0042
+          },
+          "scenario-mgr": {
+            "pca_error": 0.0389,
+            "ae_error": 0.008,
+            "attention_error": 0.0006,
+            "composite": 0.0043
+          },
+          "entity-service": {
+            "pca_error": 0.0031,
+            "ae_error": 0.0082,
+            "attention_error": 0.0005,
+            "composite": 0.0044
+          },
+          "comms-service": {
+            "pca_error": 0.0143,
+            "ae_error": 0.008,
+            "attention_error": 0.0005,
+            "composite": 0.0043
+          },
+          "sensor-service": {
+            "pca_error": 0.0035,
+            "ae_error": 0.0082,
+            "attention_error": 0.0005,
+            "composite": 0.0043
+          },
+          "fire-control": {
+            "pca_error": 0.1447,
+            "ae_error": 0.0028,
+            "attention_error": 0.0005,
+            "composite": 0.0016
+          },
+          "env-service": {
+            "pca_error": 0.0095,
+            "ae_error": 0.0083,
+            "attention_error": 0.0006,
+            "composite": 0.0044
+          },
+          "log-service": {
+            "pca_error": 0.0259,
+            "ae_error": 0.0083,
+            "attention_error": 0.0007,
+            "composite": 0.0045
+          },
+          "state-store": {
+            "pca_error": 0.187,
+            "ae_error": 0.0158,
+            "attention_error": 0.001,
+            "composite": 0.0084
+          },
+          "telemetry-gw": {
+            "pca_error": 0.0259,
+            "ae_error": 0.0083,
+            "attention_error": 0.0007,
+            "composite": 0.0045
+          },
+          "sim-bridge": {
+            "pca_error": 0.3372,
+            "ae_error": 0.0062,
+            "attention_error": 0.0005,
+            "composite": 0.0033
+          }
+        },
+        "threshold": 0.0108,
+        "anomalous_services": [
+          "fire-control",
+          "orchestrator"
+        ],
+        "root_cause_ranking": [
+          {
+            "service": "fire-control",
+            "prob": 0.9774112358232405
+          },
+          {
+            "service": "entity-service",
+            "prob": 0.005645289066916416
+          },
+          {
+            "service": "comms-service",
+            "prob": 0.005645289066916416
+          }
+        ],
+        "propagation_path": [
+          "fire-control"
+        ],
+        "impacted_services": [
+          {
+            "service": "orchestrator",
+            "distance": 1
+          }
+        ],
+        "trace_evidence": {
+          "available": true,
+          "error": null,
+          "graph_source": "runtime_trace",
+          "graph_edges": 16,
+          "trace_count": 59,
+          "span_total": 532,
+          "window_start": 1793076111.6377296,
+          "window_end": 1793076120.1969984,
+          "failed_peers": {
+            "fire-control": 5
+          },
+          "trace_anomalous": [
+            "orchestrator"
+          ],
+          "root_cause_span": {
+            "service": "fire-control",
+            "span_count": 43,
+            "error_count": 0,
+            "error_rate": 0.0,
+            "p95_ms": 22.457,
+            "first_error_at": null
+          },
+          "sample_trace_ids": [
+            "e6dd705d0a42c26f54427cd9426c9513",
+            "f8fe5618e42a3735be21ec3e0734fa28",
+            "feacedbed9170f25af219c0c7d42d2d6",
+            "ff4a967a94574d9d2d2dd82117f68d62",
+            "ff706f623710e593b30af3bca8b58ef6"
+          ],
+          "edge_counts": {
+            "orchestrator->scenario-mgr": 26,
+            "orchestrator->entity-service": 13,
+            "orchestrator->comms-service": 13,
+            "orchestrator->fire-control": 21,
+            "orchestrator->sensor-service": 13,
+            "orchestrator->env-service": 13,
+            "orchestrator->log-service": 13,
+            "orchestrator->telemetry-gw": 26,
+            "orchestrator->state-store": 13,
+            "orchestrator->sim-bridge": 13,
+            "scenario-mgr->state-store": 13,
+            "scenario-mgr->log-service": 13,
+            "sensor-service->entity-service": 11,
+            "sensor-service->env-service": 11,
+            "fire-control->comms-service": 11,
+            "fire-control->sensor-service": 11
+          }
+        },
+        "detect_invoked_at": 1793076120.1969955,
+        "scan_duration_s": 9.305
+      },
+      "duration": 9.327521800994873
+    },
+    "measure_latency": {
+      "id": "measure_latency",
+      "name": "\u8ba1\u7b97\u6545\u969c\u611f\u77e5\u5ef6\u8fdf",
+      "status": "SUCCEEDED",
+      "start_time": 1793076129.5148375,
+      "end_time": 1793076129.5180268,
+      "error": null,
+      "result": {
+        "inject_time": 1793076113.6377296,
+        "detect_time": 1793076114.193,
+        "evidence_at": 1793076114.193,
+        "evidence_latency_ms": 555.3,
+        "latency_seconds": 0.5552704334259033,
+        "latency_ms": 555.2704334259033,
+        "raw_evidence_latency_s": 0.555,
+        "conclusion_latency_s": 0.555,
+        "anomaly": false,
+        "detection_signal": "trace_error",
+        "scan_duration_ms": 9305.0,
+        "end_to_end_ms": 15864.3
+      },
+      "duration": 0.0031893253326416016
+    },
+    "trace": {
+      "id": "trace",
+      "name": "\u91c7\u96c6\u6545\u969c\u6001\u771f\u5b9e Trace\uff08\u670d\u52a1\u7ea7\u6307\u6807 + \u8fd0\u884c\u6001\u4f9d\u8d56\u56fe\uff09",
+      "status": "SUCCEEDED",
+      "start_time": 1793076129.5290713,
+      "end_time": 1793076131.7055175,
+      "error": null,
+      "result": {
+        "available": true,
+        "jaeger": "http://jaeger:16686",
+        "query_duration_s": 2.163,
+        "trace_count": 223,
+        "span_total": 1662,
+        "services": {
+          "scenario-mgr": {
+            "span_count": 156,
+            "error_count": 0,
+            "error_rate": 0.0,
+            "mean_ms": 6.975,
+            "p50_ms": 5.349,
+            "p95_ms": 17.471,
+            "max_ms": 42.022,
+            "first_error_at": null,
+            "last_error_at": null,
+            "operations": [
+              [
+                "GET /healthz",
+                39
+              ],
+              [
+                "PUT state-store/state",
+                39
+              ],
+              [
+                "GET /scenario/battalion_attack",
+                39
+              ],
+              [
+                "POST log-service/log",
+                39
+              ]
+            ]
+          },
+          "orchestrator": {
+            "span_count": 546,
+            "error_count": 11,
+            "error_rate": 0.0201,
+            "mean_ms": 47.645,
+            "p50_ms": 4.762,
+            "p95_ms": 90.621,
+            "max_ms": 3131.578,
+            "first_error_at": 1793076068.73,
+            "last_error_at": 1793076115.044,
+            "operations": [
+              [
+                "GET /healthz",
+                390
+              ],
+              [
+                "GET scenario-mgr/scenario",
+                39
+              ],
+              [
+                "POST fire-control/engage",
+                39
+              ],
+              [
+                "POST /trigger",
+                39
+              ],
+              [
+                "POST telemetry-gw/ingest",
+                39
+              ]
+            ]
+          },
+          "entity-service": {
+            "span_count": 74,
+            "error_count": 0,
+            "error_rate": 0.0,
+            "mean_ms": 1.134,
+            "p50_ms": 0.868,
+            "p95_ms": 2.312,
+            "max_ms": 6.767,
+            "first_error_at": null,
+            "last_error_at": null,
+            "operations": [
+              [
+                "GET /healthz",
+                39
+              ],
+              [
+                "GET /entities",
+                35
+              ]
+            ]
+          },
+          "comms-service": {
+            "span_count": 74,
+            "error_count": 0,
+            "error_rate": 0.0,
+            "mean_ms": 1.569,
+            "p50_ms": 1.198,
+            "p95_ms": 3.743,
+            "max_ms": 4.817,
+            "first_error_at": null,
+            "last_error_at": null,
+            "operations": [
+              [
+                "GET /healthz",
+                39
+              ],
+              [
+                "POST /send",
+                35
+              ]
+            ]
+          },
+          "sensor-service": {
+            "span_count": 144,
+            "error_count": 0,
+            "error_rate": 0.0,
+            "mean_ms": 4.623,
+            "p50_ms": 3.414,
+            "p95_ms": 11.159,
+            "max_ms": 30.711,
+            "first_error_at": null,
+            "last_error_at": null,
+            "operations": [
+              [
+                "GET /healthz",
+                39
+              ],
+              [
+                "GET entity-service/entities",
+                35
+              ],
+              [
+                "GET env-service/weather",
+                35
+              ],
+              [
+                "GET /tracks",
+                35
+              ]
+            ]
+          },
+          "fire-control": {
+            "span_count": 137,
+            "error_count": 0,
+            "error_rate": 0.0,
+            "mean_ms": 10.486,
+            "p50_ms": 9.712,
+            "p95_ms": 23.751,
+            "max_ms": 49.893,
+            "first_error_at": null,
+            "last_error_at": null,
+            "operations": [
+              [
+                "GET sensor-service/tracks",
+                35
+              ],
+              [
+                "POST /engage",
+                35
+              ],
+              [
+                "POST comms-service/send",
+                35
+              ],
+              [
+                "GET /healthz",
+                32
+              ]
+            ]
+          },
+          "env-service": {
+            "span_count": 74,
+            "error_count": 0,
+            "error_rate": 0.0,
+            "mean_ms": 1.098,
+            "p50_ms": 0.876,
+            "p95_ms": 2.031,
+            "max_ms": 4.114,
+            "first_error_at": null,
+            "last_error_at": null,
+            "operations": [
+              [
+                "GET /healthz",
+                39
+              ],
+              [
+                "GET /weather",
+                35
+              ]
+            ]
+          },
+          "log-service": {
+            "span_count": 159,
+            "error_count": 0,
+            "error_rate": 0.0,
+            "mean_ms": 1.355,
+            "p50_ms": 0.883,
+            "p95_ms": 4.397,
+            "max_ms": 10.993,
+            "first_error_at": null,
+            "last_error_at": null,
+            "operations": [
+              [
+                "GET /metrics/",
+                81
+              ],
+              [
+                "GET /healthz",
+                39
+              ],
+              [
+                "POST /log",
+                39
+              ]
+            ]
+          },
+          "state-store": {
+            "span_count": 181,
+            "error_count": 0,
+            "error_rate": 0.0,
+            "mean_ms": 1.568,
+            "p50_ms": 1.072,
+            "p95_ms": 4.294,
+            "max_ms": 9.999,
+            "first_error_at": null,
+            "last_error_at": null,
+            "operations": [
+              [
+                "GET /healthz",
+                66
+              ],
+              [
+                "GET /snapshot",
+                42
+              ],
+              [
+                "PUT /state/battalion_attack",
+                39
+              ],
+              [
+                "POST /replicate",
+                34
+              ]
+            ]
+          },
+          "telemetry-gw": {
+            "span_count": 78,
+            "error_count": 0,
+            "error_rate": 0.0,
+            "mean_ms": 1.473,
+            "p50_ms": 1.0,
+            "p95_ms": 3.011,
+            "max_ms": 11.673,
+            "first_error_at": null,
+            "last_error_at": null,
+            "operations": [
+              [
+                "GET /healthz",
+                39
+              ],
+              [
+                "POST /ingest",
+                39
+              ]
+            ]
+          },
+          "sim-bridge": {
+            "span_count": 39,
+            "error_count": 0,
+            "error_rate": 0.0,
+            "mean_ms": 1.15,
+            "p50_ms": 0.823,
+            "p95_ms": 2.409,
+            "max_ms": 5.556,
+            "first_error_at": null,
+            "last_error_at": null,
+            "operations": [
+              [
+                "GET /healthz",
+                39
+              ]
+            ]
+          }
+        },
+        "edges": {
+          "orchestrator->scenario-mgr": 78,
+          "orchestrator->entity-service": 39,
+          "orchestrator->comms-service": 39,
+          "orchestrator->sensor-service": 39,
+          "orchestrator->fire-control": 67,
+          "orchestrator->env-service": 39,
+          "orchestrator->log-service": 39,
+          "orchestrator->state-store": 39,
+          "orchestrator->telemetry-gw": 78,
+          "orchestrator->sim-bridge": 39,
+          "scenario-mgr->log-service": 39,
+          "scenario-mgr->state-store": 39,
+          "sensor-service->entity-service": 35,
+          "sensor-service->env-service": 35,
+          "fire-control->sensor-service": 35,
+          "fire-control->comms-service": 35
+        },
+        "failed_peers": {
+          "fire-control": 11
+        },
+        "sample_trace_ids": [
+          "f7d28b8211b1b2ae6b524cf2fc5c3c6f",
+          "f820e34f56144675588e900dad73dd77",
+          "f8fe5618e42a3735be21ec3e0734fa28",
+          "f97443b73629f76046165e86a8f9b51f",
+          "fc2ab173ef4062e6c1ce857308a65697",
+          "fc8c1070c32efaffa804e10b56a33e2f",
+          "fd7bf4d51cf3dd8833d69bd0a3dc26c8",
+          "feacedbed9170f25af219c0c7d42d2d6",
+          "ff4a967a94574d9d2d2dd82117f68d62",
+          "ff706f623710e593b30af3bca8b58ef6"
+        ],
+        "runtime_graph": {
+          "orchestrator": [
+            "scenario-mgr",
+            "entity-service",
+            "comms-service",
+            "sensor-service",
+            "fire-control",
+            "env-service",
+            "log-service",
+            "state-store",
+            "telemetry-gw",
+            "sim-bridge"
+          ],
+          "scenario-mgr": [
+            "log-service",
+            "state-store"
+          ],
+          "entity-service": [],
+          "comms-service": [],
+          "sensor-service": [
+            "entity-service",
+            "env-service"
+          ],
+          "fire-control": [
+            "sensor-service",
+            "comms-service"
+          ],
+          "env-service": [],
+          "log-service": [],
+          "state-store": [],
+          "telemetry-gw": [],
+          "sim-bridge": []
+        },
+        "graph_diff": {
+          "design_edges": [
+            "fire-control->comms-service",
+            "fire-control->sensor-service",
+            "orchestrator->comms-service",
+            "orchestrator->entity-service",
+            "orchestrator->env-service",
+            "orchestrator->fire-control",
+            "orchestrator->log-service",
+            "orchestrator->scenario-mgr",
+            "orchestrator->sensor-service",
+            "orchestrator->sim-bridge",
+            "orchestrator->state-store",
+            "orchestrator->telemetry-gw",
+            "scenario-mgr->log-service",
+            "scenario-mgr->state-store",
+            "sensor-service->entity-service",
+            "sensor-service->env-service"
+          ],
+          "runtime_edges": [
+            "fire-control->comms-service",
+            "fire-control->sensor-service",
+            "orchestrator->comms-service",
+            "orchestrator->entity-service",
+            "orchestrator->env-service",
+            "orchestrator->fire-control",
+            "orchestrator->log-service",
+            "orchestrator->scenario-mgr",
+            "orchestrator->sensor-service",
+            "orchestrator->sim-bridge",
+            "orchestrator->state-store",
+            "orchestrator->telemetry-gw",
+            "scenario-mgr->log-service",
+            "scenario-mgr->state-store",
+            "sensor-service->entity-service",
+            "sensor-service->env-service"
+          ],
+          "missing_in_runtime": [],
+          "extra_in_runtime": [],
+          "coverage": 1.0
+        },
+        "lookback_s": 900,
+        "window_start": 1793075229.532143,
+        "window_end": 1793076129.532143,
+        "timestamp": 1793076131.695175
+      },
+      "duration": 2.1764461994171143
+    },
+    "tolerate": {
+      "id": "tolerate",
+      "name": "\u5185\u5bb9\u4e8c\u00b7RL \u670d\u52a1\u964d\u7ea7 + \u52a8\u6001\u8c03\u5ea6\u5bb9\u9519",
+      "status": "SUCCEEDED",
+      "start_time": 1793076131.7255347,
+      "end_time": 1793076131.9615145,
+      "error": null,
+      "result": {
+        "target": "fire-control",
+        "strategy": "priority_boost",
+        "q_values": {
+          "wait_selfheal": -23.337,
+          "scale_replicas": -22.863,
+          "degrade_noncritical": -23.22,
+          "priority_boost": -22.81
+        },
+        "task_critical": true,
+        "degradation_plan": [],
+        "cluster_load_level": 1,
+        "target_load_level": 0,
+        "resource_profile": {
+          "orchestrator": {
+            "cpu": "68m",
+            "memory": "36Mi"
+          },
+          "scenario-mgr": {
+            "cpu": "6m",
+            "memory": "35Mi"
+          },
+          "entity-service": {
+            "cpu": "5m",
+            "memory": "35Mi"
+          },
+          "comms-service": {
+            "cpu": "6m",
+            "memory": "36Mi"
+          },
+          "sensor-service": {
+            "cpu": "6m",
+            "memory": "35Mi"
+          },
+          "fire-control": {},
+          "env-service": {
+            "cpu": "4m",
+            "memory": "35Mi"
+          },
+          "log-service": {
+            "cpu": "4m",
+            "memory": "35Mi"
+          },
+          "state-store": {
+            "cpu": "7m",
+            "memory": "35Mi"
+          },
+          "telemetry-gw": {
+            "cpu": "4m",
+            "memory": "35Mi"
+          },
+          "sim-bridge": {
+            "cpu": "4m",
+            "memory": "36Mi"
+          }
+        },
+        "actions_applied": [
+          {
+            "type": "annotate_strategy",
+            "target": "fire-control",
+            "strategy": "priority_boost"
+          },
+          {
+            "type": "self_heal_observed",
+            "target": "fire-control"
+          }
+        ],
+        "recovered_at": 1793076131.9614515,
+        "recovery_time_s": 18.324,
+        "decision_time": 1793076131.9614644
+      },
+      "duration": 0.23597979545593262
+    },
+    "measure_recovery": {
+      "id": "measure_recovery",
+      "name": "\u8ba1\u7b97\u6545\u969c\u6062\u590d\u65f6\u95f4",
+      "status": "SUCCEEDED",
+      "start_time": 1793076131.9778292,
+      "end_time": 1793076131.98523,
+      "error": null,
+      "result": {
+        "recovery_time_s": 18.324
+      },
+      "duration": 0.0074007511138916016
+    },
+    "consist": {
+      "id": "consist",
+      "name": "\u5185\u5bb9\u4e09\u00b7\u6a21\u7cca-\u6392\u961f\u534f\u540c\u4e00\u81f4\u6027",
+      "status": "SUCCEEDED",
+      "start_time": 1793076132.020279,
+      "end_time": 1793076133.9720638,
+      "error": null,
+      "result": {
+        "state": "TRIGGERED",
+        "triggered_events": [
+          "data_update_burst"
+        ],
+        "monitor": {
+          "avg_cluster_cpu_m": 10.4,
+          "rtt_s": 0.0027,
+          "rtt_source": "probe",
+          "rtt_samples_s": [
+            0.0084,
+            0.0086,
+            0.0027
+          ],
+          "total_request_rate": 7.913,
+          "delay_norm": 0.013,
+          "load_norm": 0.035
+        },
+        "fuzzy": {
+          "sync_interval_s": 0.05,
+          "consistency_strength": 0.92,
+          "timeout_ms": 50.0,
+          "consistency_level": "strong"
+        },
+        "queue_mm1": {
+          "rho": 0.164,
+          "wait_s": 0.0041,
+          "stable": true
+        },
+        "fuzzy_response_surface": [
+          {
+            "delay_norm": 0.1,
+            "load_norm": 0.1,
+            "sync_interval_s": 0.05,
+            "consistency_level": "strong",
+            "consistency_strength": 0.92,
+            "timeout_ms": 50.0,
+            "mm1_wait_s": 0.0178
+          },
+          {
+            "delay_norm": 0.1,
+            "load_norm": 0.5,
+            "sync_interval_s": 0.1,
+            "consistency_level": "strong",
+            "consistency_strength": 0.8,
+            "timeout_ms": 80.0,
+            "mm1_wait_s": 0.16
+          },
+          {
+            "delay_norm": 0.1,
+            "load_norm": 0.9,
+            "sync_interval_s": 0.2,
+            "consistency_level": "balanced",
+            "consistency_strength": 0.65,
+            "timeout_ms": 120.0,
+            "mm1_wait_s": 1.8
+          },
+          {
+            "delay_norm": 0.5,
+            "load_norm": 0.1,
+            "sync_interval_s": 0.1,
+            "consistency_level": "strong",
+            "consistency_strength": 0.8,
+            "timeout_ms": 100.0,
+            "mm1_wait_s": 0.0178
+          },
+          {
+            "delay_norm": 0.5,
+            "load_norm": 0.5,
+            "sync_interval_s": 0.3,
+            "consistency_level": "balanced",
+            "consistency_strength": 0.55,
+            "timeout_ms": 150.0,
+            "mm1_wait_s": 0.16
+          },
+          {
+            "delay_norm": 0.5,
+            "load_norm": 0.9,
+            "sync_interval_s": 0.5,
+            "consistency_level": "balanced",
+            "consistency_strength": 0.45,
+            "timeout_ms": 250.0,
+            "mm1_wait_s": 1.8
+          },
+          {
+            "delay_norm": 0.9,
+            "load_norm": 0.1,
+            "sync_interval_s": 0.3,
+            "consistency_level": "balanced",
+            "consistency_strength": 0.5,
+            "timeout_ms": 300.0,
+            "mm1_wait_s": 0.0178
+          },
+          {
+            "delay_norm": 0.9,
+            "load_norm": 0.5,
+            "sync_interval_s": 0.6,
+            "consistency_level": "eventual",
+            "consistency_strength": 0.4,
+            "timeout_ms": 380.0,
+            "mm1_wait_s": 0.16
+          },
+          {
+            "delay_norm": 0.9,
+            "load_norm": 0.9,
+            "sync_interval_s": 1.0,
+            "consistency_level": "eventual",
+            "consistency_strength": 0.3,
+            "timeout_ms": 450.0,
+            "mm1_wait_s": 1.8
+          }
+        ],
+        "base_fuzzy_params": {
+          "sync_interval_s": 0.05,
+          "consistency_strength": 0.92,
+          "timeout_ms": 50.0
+        },
+        "event_adjustments": [
+          "data_update_burst -> sync_interval capped at 0.20s"
+        ],
+        "faulty_services": [],
+        "state_consistency": {
+          "observed_consistent": null,
+          "divergent_keys": [],
+          "replicas": 0
+        },
+        "decision_time": 1793076133.971917,
+        "adapt_duration_s": 1.937
+      },
+      "duration": 1.9517848491668701
+    },
+    "summary": {
+      "id": "summary",
+      "name": "\u5b9e\u9a8c\u6c47\u603b",
+      "status": "SUCCEEDED",
+      "start_time": 1793076134.0018134,
+      "end_time": 1793076134.0248716,
+      "error": null,
+      "result": {
+        "perception": {
+          "detected": true,
+          "faulty_service": "fire-control",
+          "confidence": 0.977,
+          "detection_signal": "trace_error",
+          "anomalous_services": [
+            "fire-control",
+            "orchestrator"
+          ],
+          "root_cause_top3": [
+            {
+              "service": "fire-control",
+              "prob": 0.9774112358232405
+            },
+            {
+              "service": "entity-service",
+              "prob": 0.005645289066916416
+            },
+            {
+              "service": "comms-service",
+              "prob": 0.005645289066916416
+            }
+          ],
+          "propagation_path": [
+            "fire-control"
+          ],
+          "impacted_services": [
+            {
+              "service": "orchestrator",
+              "distance": 1
+            }
+          ],
+          "pca_explained": [
+            0.577,
+            0.351
+          ],
+          "trace_graph_source": "runtime_trace",
+          "trace_graph_edges": 16,
+          "trace_failed_peers": {
+            "fire-control": 5
+          }
+        },
+        "detect_latency": {
+          "inject_time": 1793076113.6377296,
+          "detect_time": 1793076114.193,
+          "evidence_at": 1793076114.193,
+          "evidence_latency_ms": 555.3,
+          "latency_seconds": 0.5552704334259033,
+          "latency_ms": 555.2704334259033,
+          "raw_evidence_latency_s": 0.555,
+          "conclusion_latency_s": 0.555,
+          "anomaly": false,
+          "detection_signal": "trace_error",
+          "scan_duration_ms": 9305.0,
+          "end_to_end_ms": 15864.3
+        },
+        "tolerance": {
+          "strategy": "priority_boost",
+          "q_values": {
+            "wait_selfheal": -23.337,
+            "scale_replicas": -22.863,
+            "degrade_noncritical": -23.22,
+            "priority_boost": -22.81
+          },
+          "task_critical": true,
+          "actions_applied": [
+            {
+              "type": "annotate_strategy",
+              "target": "fire-control",
+              "strategy": "priority_boost"
+            },
+            {
+              "type": "self_heal_observed",
+              "target": "fire-control"
+            }
+          ],
+          "degradation_plan": [],
+          "cluster_load_level": 1,
+          "target_load_level": 0,
+          "recovery_time_s": 18.324
+        },
+        "recovery_time": {
+          "recovery_time_s": 18.324
+        },
+        "consistency": {
+          "state": "TRIGGERED",
+          "triggered_events": [
+            "data_update_burst"
+          ],
+          "consistency_level": "strong",
+          "sync_interval_s": 0.05,
+          "consistency_strength": 0.92,
+          "event_adjustments": [
+            "data_update_burst -> sync_interval capped at 0.20s"
+          ],
+          "mm1_wait_s": 0.0041,
+          "observed_divergent_keys": [],
+          "observed_consistent": null
+        }
+      },
+      "duration": 0.023058176040649414
+    }
+  },
+  "updated_at": "2026-10-27T04:42:14.071986"
+}

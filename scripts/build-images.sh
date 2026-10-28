@@ -32,6 +32,7 @@ SERVICES=(
   notification-service
   platform-service
   chaos-service
+  eval-service
 )
 
 IMAGE_PREFIX="${IMAGE_PREFIX:-sim}"

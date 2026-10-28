@@ -1,0 +1,776 @@
+{
+  "exp_id": "verify-military_consistency",
+  "status": "COMPLETED",
+  "steps": {
+    "check_env": {
+      "id": "check_env",
+      "name": "\u68c0\u67e5\u73af\u5883",
+      "status": "SUCCEEDED",
+      "start_time": 1793076135.9923356,
+      "end_time": 1793076136.0302558,
+      "error": null,
+      "result": {
+        "ready": [
+          "orchestrator",
+          "state-store",
+          "entity-service",
+          "telemetry-gw",
+          "sim-bridge"
+        ]
+      },
+      "duration": 0.037920236587524414
+    },
+    "start_sim": {
+      "id": "start_sim",
+      "name": "\u542f\u52a8\u4eff\u771f",
+      "status": "SUCCEEDED",
+      "start_time": 1793076136.0344856,
+      "end_time": 1793076136.8034487,
+      "error": null,
+      "result": {
+        "status": "started",
+        "ross": {
+          "running": false,
+          "engine": "ross",
+          "mode": "real",
+          "lp_count": 14,
+          "events_processed": 608,
+          "end_time": 20.0,
+          "returncode": 0,
+          "pid": 34,
+          "error": null,
+          "fault": {
+            "type": "lp_crash",
+            "target_lp": 0,
+            "at_time": 3.0,
+            "injected_at": 1793067693.3860526
+          },
+          "finished_at": 1793076136.575894,
+          "output_tail": [
+            "\tGVT Real Time Interval (sec)                        0.00000000",
+            "\tBatch Size                                                  16",
+            "",
+            "\tForced GVT                                                   0",
+            "\tTotal GVT Computations                                       0",
+            "\tTotal All Reduce Calls                                       0",
+            "\tAverage Reduction / GVT                                   -nan",
+            "=== FAULT REPORT: type=lp_crash target=0 at=3.00, events_dropped=1 ===",
+            "",
+            "=== Simulation Complete (end time 20.0) ==="
+          ]
+        }
+      },
+      "duration": 0.768963098526001
+    },
+    "state_reset": {
+      "id": "state_reset",
+      "name": "\u6e05\u7a7a\u72b6\u6001\u526f\u672c\uff08\u5b9e\u9a8c\u57fa\u7ebf\uff09",
+      "status": "SUCCEEDED",
+      "start_time": 1793076136.8092768,
+      "end_time": 1793076137.2656543,
+      "error": null,
+      "result": {
+        "replicas": [
+          {
+            "status": "reset",
+            "replica": "state-store-7c6b57c6f5-j58nz",
+            "timestamp": 1793076137.177543,
+            "ip": "10.42.0.150"
+          },
+          {
+            "status": "reset",
+            "replica": "state-store-7c6b57c6f5-w75s4",
+            "timestamp": 1793076137.179544,
+            "ip": "10.42.0.151"
+          },
+          {
+            "status": "reset",
+            "replica": "state-store-7c6b57c6f5-c5h48",
+            "timestamp": 1793076137.1815743,
+            "ip": "10.42.0.152"
+          }
+        ],
+        "timestamp": 1793076136.813
+      },
+      "duration": 0.4563775062561035
+    },
+    "state_write_base": {
+      "id": "state_write_base",
+      "name": "\u5168\u91cf\u5199\u5165\u57fa\u7ebf\u72b6\u6001",
+      "status": "SUCCEEDED",
+      "start_time": 1793076137.273045,
+      "end_time": 1793076137.7198865,
+      "error": null,
+      "result": {
+        "key": "mission-state",
+        "targets": 3,
+        "replicate": true,
+        "replicas": [
+          {
+            "key": "mission-state",
+            "version": 1,
+            "origin": "state-store-7c6b57c6f5-j58nz",
+            "replica": "state-store-7c6b57c6f5-j58nz",
+            "replicated": true,
+            "ip": "10.42.0.150"
+          },
+          {
+            "key": "mission-state",
+            "version": 1,
+            "origin": "state-store-7c6b57c6f5-w75s4",
+            "replica": "state-store-7c6b57c6f5-w75s4",
+            "replicated": true,
+            "ip": "10.42.0.151"
+          },
+          {
+            "key": "mission-state",
+            "version": 2,
+            "origin": "state-store-7c6b57c6f5-c5h48",
+            "replica": "state-store-7c6b57c6f5-c5h48",
+            "replicated": true,
+            "ip": "10.42.0.152"
+          }
+        ],
+        "timestamp": 1793076137.719822
+      },
+      "duration": 0.4468414783477783
+    },
+    "state_verify_base": {
+      "id": "state_verify_base",
+      "name": "\u6821\u9a8c\u57fa\u7ebf\u4e00\u81f4",
+      "status": "SUCCEEDED",
+      "start_time": 1793076137.7239192,
+      "end_time": 1793076138.0966058,
+      "error": null,
+      "result": {
+        "replicas": [
+          {
+            "ip": "10.42.0.150",
+            "replica": "state-store-7c6b57c6f5-j58nz",
+            "digest": "ab3d405a0605dbb3",
+            "keys": 1
+          },
+          {
+            "ip": "10.42.0.151",
+            "replica": "state-store-7c6b57c6f5-w75s4",
+            "digest": "ab3d405a0605dbb3",
+            "keys": 1
+          },
+          {
+            "ip": "10.42.0.152",
+            "replica": "state-store-7c6b57c6f5-c5h48",
+            "digest": "ab3d405a0605dbb3",
+            "keys": 1
+          }
+        ],
+        "unreachable": [],
+        "consistent": true,
+        "divergent_keys": [],
+        "per_key": {},
+        "timestamp": 1793076137.726
+      },
+      "duration": 0.37268662452697754
+    },
+    "inject_net": {
+      "id": "inject_net",
+      "name": "\u6ce8\u5165\u7f51\u7edc\u5ef6\u8fdf\u4e0e\u4e22\u5305\uff08\u6a21\u62df\u5f31\u7f51\u5206\u533a\uff09",
+      "status": "SUCCEEDED",
+      "start_time": 1793076138.1020827,
+      "end_time": 1793076138.6981747,
+      "error": null,
+      "result": {
+        "status": "injected",
+        "type": "netem",
+        "service": "state-store",
+        "delay": "200ms",
+        "loss": "10%",
+        "pods": [
+          "state-store-7c6b57c6f5-c5h48",
+          "state-store-7c6b57c6f5-j58nz",
+          "state-store-7c6b57c6f5-w75s4"
+        ],
+        "errors": []
+      },
+      "duration": 0.5960919857025146
+    },
+    "traffic_under_fault": {
+      "id": "traffic_under_fault",
+      "name": "\u5f31\u7f51\u671f\u95f4\u4e1a\u52a1\u6d41\u91cf\uff08\u653e\u5927\u72b6\u6001\u8bbf\u95ee\u4e0e RTT\uff09",
+      "status": "SUCCEEDED",
+      "start_time": 1793076138.7057822,
+      "end_time": 1793076143.5478814,
+      "error": null,
+      "result": {
+        "requests": 4,
+        "engaged": 4,
+        "degraded_or_failed": 0,
+        "last": [
+          {
+            "i": 1,
+            "status": "engaged",
+            "fire_control": "ok"
+          },
+          {
+            "i": 2,
+            "status": "engaged",
+            "fire_control": "ok"
+          },
+          {
+            "i": 3,
+            "status": "engaged",
+            "fire_control": "ok"
+          }
+        ],
+        "timestamp": 1793076143.547843
+      },
+      "duration": 4.842099189758301
+    },
+    "state_write_divergent": {
+      "id": "state_write_divergent",
+      "name": "\u53ea\u5199\u5355\u4e2a\u526f\u672c\uff08\u5236\u9020\u771f\u5b9e\u5206\u53c9\uff09",
+      "status": "SUCCEEDED",
+      "start_time": 1793076143.5550642,
+      "end_time": 1793076145.401028,
+      "error": null,
+      "result": {
+        "key": "mission-state",
+        "targets": 1,
+        "replicate": false,
+        "replicas": [
+          {
+            "key": "mission-state",
+            "version": 3,
+            "origin": "state-store-7c6b57c6f5-j58nz",
+            "replica": "state-store-7c6b57c6f5-j58nz",
+            "replicated": false,
+            "ip": "10.42.0.150"
+          }
+        ],
+        "timestamp": 1793076145.4009795
+      },
+      "duration": 1.845963716506958
+    },
+    "state_verify_divergent": {
+      "id": "state_verify_divergent",
+      "name": "\u6821\u9a8c\u526f\u672c\u5206\u53c9",
+      "status": "SUCCEEDED",
+      "start_time": 1793076145.4102252,
+      "end_time": 1793076147.267082,
+      "error": null,
+      "result": {
+        "replicas": [
+          {
+            "ip": "10.42.0.150",
+            "replica": "state-store-7c6b57c6f5-j58nz",
+            "digest": "81298fc31d0c71c2",
+            "keys": 2
+          },
+          {
+            "ip": "10.42.0.151",
+            "replica": "state-store-7c6b57c6f5-w75s4",
+            "digest": "d0a3721a4e5d523d",
+            "keys": 2
+          },
+          {
+            "ip": "10.42.0.152",
+            "replica": "state-store-7c6b57c6f5-c5h48",
+            "digest": "0aa3a1e93725a322",
+            "keys": 2
+          }
+        ],
+        "unreachable": [],
+        "consistent": false,
+        "divergent_keys": [
+          "battalion_attack",
+          "mission-state"
+        ],
+        "per_key": {
+          "battalion_attack": {
+            "10.42.0.150": [
+              2,
+              1793076142.0986469,
+              "state-store-7c6b57c6f5-j58nz"
+            ],
+            "10.42.0.151": [
+              2,
+              1793076140.9202952,
+              "state-store-7c6b57c6f5-w75s4"
+            ],
+            "10.42.0.152": [
+              2,
+              1793076143.2883701,
+              "state-store-7c6b57c6f5-c5h48"
+            ]
+          },
+          "mission-state": {
+            "10.42.0.150": [
+              3,
+              1793076145.178567,
+              "state-store-7c6b57c6f5-j58nz"
+            ],
+            "10.42.0.151": [
+              2,
+              1793076137.6808107,
+              "state-store-7c6b57c6f5-c5h48"
+            ],
+            "10.42.0.152": [
+              2,
+              1793076137.6808107,
+              "state-store-7c6b57c6f5-c5h48"
+            ]
+          }
+        },
+        "timestamp": 1793076145.413
+      },
+      "duration": 1.8568568229675293
+    },
+    "consist": {
+      "id": "consist",
+      "name": "\u5185\u5bb9\u4e09\u00b7\u6a21\u7cca-\u6392\u961f\u534f\u540c\u4e00\u81f4\u6027\u51b3\u7b56",
+      "status": "SUCCEEDED",
+      "start_time": 1793076147.27636,
+      "end_time": 1793076150.6150978,
+      "error": null,
+      "result": {
+        "state": "TRIGGERED",
+        "triggered_events": [
+          "network_partition_suspected",
+          "data_update_burst",
+          "state_divergence"
+        ],
+        "monitor": {
+          "avg_cluster_cpu_m": 11.1,
+          "rtt_s": 0.4034,
+          "rtt_source": "probe",
+          "rtt_samples_s": [
+            1.2896,
+            0.6633,
+            0.4034
+          ],
+          "total_request_rate": 8.9652,
+          "delay_norm": 1.0,
+          "load_norm": 0.037
+        },
+        "fuzzy": {
+          "sync_interval_s": 0.1,
+          "consistency_strength": 0.85,
+          "timeout_ms": 300.0,
+          "consistency_level": "strong"
+        },
+        "queue_mm1": {
+          "rho": 0.186,
+          "wait_s": 0.0048,
+          "stable": true
+        },
+        "fuzzy_response_surface": [
+          {
+            "delay_norm": 0.1,
+            "load_norm": 0.1,
+            "sync_interval_s": 0.05,
+            "consistency_level": "strong",
+            "consistency_strength": 0.92,
+            "timeout_ms": 50.0,
+            "mm1_wait_s": 0.0178
+          },
+          {
+            "delay_norm": 0.1,
+            "load_norm": 0.5,
+            "sync_interval_s": 0.1,
+            "consistency_level": "strong",
+            "consistency_strength": 0.8,
+            "timeout_ms": 80.0,
+            "mm1_wait_s": 0.16
+          },
+          {
+            "delay_norm": 0.1,
+            "load_norm": 0.9,
+            "sync_interval_s": 0.2,
+            "consistency_level": "balanced",
+            "consistency_strength": 0.65,
+            "timeout_ms": 120.0,
+            "mm1_wait_s": 1.8
+          },
+          {
+            "delay_norm": 0.5,
+            "load_norm": 0.1,
+            "sync_interval_s": 0.1,
+            "consistency_level": "strong",
+            "consistency_strength": 0.8,
+            "timeout_ms": 100.0,
+            "mm1_wait_s": 0.0178
+          },
+          {
+            "delay_norm": 0.5,
+            "load_norm": 0.5,
+            "sync_interval_s": 0.3,
+            "consistency_level": "balanced",
+            "consistency_strength": 0.55,
+            "timeout_ms": 150.0,
+            "mm1_wait_s": 0.16
+          },
+          {
+            "delay_norm": 0.5,
+            "load_norm": 0.9,
+            "sync_interval_s": 0.5,
+            "consistency_level": "balanced",
+            "consistency_strength": 0.45,
+            "timeout_ms": 250.0,
+            "mm1_wait_s": 1.8
+          },
+          {
+            "delay_norm": 0.9,
+            "load_norm": 0.1,
+            "sync_interval_s": 0.3,
+            "consistency_level": "balanced",
+            "consistency_strength": 0.5,
+            "timeout_ms": 300.0,
+            "mm1_wait_s": 0.0178
+          },
+          {
+            "delay_norm": 0.9,
+            "load_norm": 0.5,
+            "sync_interval_s": 0.6,
+            "consistency_level": "eventual",
+            "consistency_strength": 0.4,
+            "timeout_ms": 380.0,
+            "mm1_wait_s": 0.16
+          },
+          {
+            "delay_norm": 0.9,
+            "load_norm": 0.9,
+            "sync_interval_s": 1.0,
+            "consistency_level": "eventual",
+            "consistency_strength": 0.3,
+            "timeout_ms": 450.0,
+            "mm1_wait_s": 1.8
+          }
+        ],
+        "base_fuzzy_params": {
+          "sync_interval_s": 0.3,
+          "consistency_strength": 0.55,
+          "timeout_ms": 150.0
+        },
+        "event_adjustments": [
+          "network_partition -> timeout raised to >=300ms",
+          "data_update_burst -> sync_interval capped at 0.20s",
+          "state_divergence(battalion_attack,mission-state) -> sync<=0.10s, strength>=0.85"
+        ],
+        "faulty_services": [],
+        "state_consistency": {
+          "observed_consistent": false,
+          "divergent_keys": [
+            "battalion_attack",
+            "mission-state"
+          ],
+          "replicas": 3
+        },
+        "decision_time": 1793076150.6150224,
+        "adapt_duration_s": 3.314
+      },
+      "duration": 3.338737726211548
+    },
+    "cleanup_net": {
+      "id": "cleanup_net",
+      "name": "\u6e05\u7406\u7f51\u7edc\u89c4\u5219",
+      "status": "SUCCEEDED",
+      "start_time": 1793076150.62384,
+      "end_time": 1793076150.6489146,
+      "error": null,
+      "result": {
+        "status": "cleared",
+        "containers": 3
+      },
+      "duration": 0.025074481964111328
+    },
+    "state_repair": {
+      "id": "state_repair",
+      "name": "\u4e3b\u52a8\u53cd\u71b5\u4fee\u590d\uff08\u62c9\u53d6 peer \u5feb\u7167\u5e76\u5408\u5e76\uff09",
+      "status": "SUCCEEDED",
+      "start_time": 1793076150.6565378,
+      "end_time": 1793076151.1652129,
+      "error": null,
+      "result": {
+        "replicas": 3,
+        "before": [
+          {
+            "ip": "10.42.0.150",
+            "result": {
+              "replica": "state-store-7c6b57c6f5-j58nz",
+              "consistent": false,
+              "digest": "6c4c8bd92e9efd44",
+              "peers": {
+                "http://10.42.0.151:8080": {
+                  "reachable": true,
+                  "replica": "state-store-7c6b57c6f5-w75s4",
+                  "digest": "fa25b4577b423751",
+                  "keys": 2
+                },
+                "http://10.42.0.152:8080": {
+                  "reachable": true,
+                  "replica": "state-store-7c6b57c6f5-c5h48",
+                  "digest": "6c4c8bd92e9efd44",
+                  "keys": 2
+                }
+              },
+              "divergent_keys": [
+                "battalion_attack",
+                "mission-state"
+              ],
+              "timestamp": 1793076151.0815232
+            }
+          },
+          {
+            "ip": "10.42.0.151",
+            "result": {
+              "replica": "state-store-7c6b57c6f5-w75s4",
+              "consistent": false,
+              "digest": "fa25b4577b423751",
+              "peers": {
+                "http://10.42.0.150:8080": {
+                  "reachable": true,
+                  "replica": "state-store-7c6b57c6f5-j58nz",
+                  "digest": "6c4c8bd92e9efd44",
+                  "keys": 2
+                },
+                "http://10.42.0.152:8080": {
+                  "reachable": true,
+                  "replica": "state-store-7c6b57c6f5-c5h48",
+                  "digest": "6c4c8bd92e9efd44",
+                  "keys": 2
+                }
+              },
+              "divergent_keys": [
+                "battalion_attack",
+                "mission-state"
+              ],
+              "timestamp": 1793076151.0891354
+            }
+          },
+          {
+            "ip": "10.42.0.152",
+            "result": {
+              "replica": "state-store-7c6b57c6f5-c5h48",
+              "consistent": false,
+              "digest": "6c4c8bd92e9efd44",
+              "peers": {
+                "http://10.42.0.151:8080": {
+                  "reachable": true,
+                  "replica": "state-store-7c6b57c6f5-w75s4",
+                  "digest": "fa25b4577b423751",
+                  "keys": 2
+                },
+                "http://10.42.0.150:8080": {
+                  "reachable": true,
+                  "replica": "state-store-7c6b57c6f5-j58nz",
+                  "digest": "6c4c8bd92e9efd44",
+                  "keys": 2
+                }
+              },
+              "divergent_keys": [
+                "battalion_attack",
+                "mission-state"
+              ],
+              "timestamp": 1793076151.0959518
+            }
+          }
+        ],
+        "sync": [
+          {
+            "ip": "10.42.0.150",
+            "result": {
+              "replica": "state-store-7c6b57c6f5-j58nz",
+              "merged": 0,
+              "errors": [],
+              "digest": "6c4c8bd92e9efd44",
+              "timestamp": 1793076151.101477
+            }
+          },
+          {
+            "ip": "10.42.0.151",
+            "result": {
+              "replica": "state-store-7c6b57c6f5-w75s4",
+              "merged": 2,
+              "errors": [],
+              "digest": "6c4c8bd92e9efd44",
+              "timestamp": 1793076151.109031
+            }
+          },
+          {
+            "ip": "10.42.0.152",
+            "result": {
+              "replica": "state-store-7c6b57c6f5-c5h48",
+              "merged": 0,
+              "errors": [],
+              "digest": "6c4c8bd92e9efd44",
+              "timestamp": 1793076151.1158073
+            }
+          }
+        ],
+        "after": [
+          {
+            "ip": "10.42.0.150",
+            "result": {
+              "replica": "state-store-7c6b57c6f5-j58nz",
+              "consistent": true,
+              "digest": "6c4c8bd92e9efd44",
+              "peers": {
+                "http://10.42.0.151:8080": {
+                  "reachable": true,
+                  "replica": "state-store-7c6b57c6f5-w75s4",
+                  "digest": "6c4c8bd92e9efd44",
+                  "keys": 2
+                },
+                "http://10.42.0.152:8080": {
+                  "reachable": true,
+                  "replica": "state-store-7c6b57c6f5-c5h48",
+                  "digest": "6c4c8bd92e9efd44",
+                  "keys": 2
+                }
+              },
+              "divergent_keys": [],
+              "timestamp": 1793076151.124003
+            }
+          },
+          {
+            "ip": "10.42.0.151",
+            "result": {
+              "replica": "state-store-7c6b57c6f5-w75s4",
+              "consistent": true,
+              "digest": "6c4c8bd92e9efd44",
+              "peers": {
+                "http://10.42.0.150:8080": {
+                  "reachable": true,
+                  "replica": "state-store-7c6b57c6f5-j58nz",
+                  "digest": "6c4c8bd92e9efd44",
+                  "keys": 2
+                },
+                "http://10.42.0.152:8080": {
+                  "reachable": true,
+                  "replica": "state-store-7c6b57c6f5-c5h48",
+                  "digest": "6c4c8bd92e9efd44",
+                  "keys": 2
+                }
+              },
+              "divergent_keys": [],
+              "timestamp": 1793076151.130063
+            }
+          },
+          {
+            "ip": "10.42.0.152",
+            "result": {
+              "replica": "state-store-7c6b57c6f5-c5h48",
+              "consistent": true,
+              "digest": "6c4c8bd92e9efd44",
+              "peers": {
+                "http://10.42.0.150:8080": {
+                  "reachable": true,
+                  "replica": "state-store-7c6b57c6f5-j58nz",
+                  "digest": "6c4c8bd92e9efd44",
+                  "keys": 2
+                },
+                "http://10.42.0.151:8080": {
+                  "reachable": true,
+                  "replica": "state-store-7c6b57c6f5-w75s4",
+                  "digest": "6c4c8bd92e9efd44",
+                  "keys": 2
+                }
+              },
+              "divergent_keys": [],
+              "timestamp": 1793076151.1352086
+            }
+          }
+        ],
+        "timestamp": 1793076151.16517
+      },
+      "duration": 0.5086750984191895
+    },
+    "state_verify_after": {
+      "id": "state_verify_after",
+      "name": "\u6821\u9a8c\u4fee\u590d\u540e\u4e00\u81f4",
+      "status": "SUCCEEDED",
+      "start_time": 1793076151.1755116,
+      "end_time": 1793076151.5907702,
+      "error": null,
+      "result": {
+        "replicas": [
+          {
+            "ip": "10.42.0.150",
+            "replica": "state-store-7c6b57c6f5-j58nz",
+            "digest": "6c4c8bd92e9efd44",
+            "keys": 2
+          },
+          {
+            "ip": "10.42.0.151",
+            "replica": "state-store-7c6b57c6f5-w75s4",
+            "digest": "6c4c8bd92e9efd44",
+            "keys": 2
+          },
+          {
+            "ip": "10.42.0.152",
+            "replica": "state-store-7c6b57c6f5-c5h48",
+            "digest": "6c4c8bd92e9efd44",
+            "keys": 2
+          }
+        ],
+        "unreachable": [],
+        "consistent": true,
+        "divergent_keys": [],
+        "per_key": {},
+        "timestamp": 1793076151.18
+      },
+      "duration": 0.41525864601135254
+    },
+    "summary": {
+      "id": "summary",
+      "name": "\u5b9e\u9a8c\u6c47\u603b",
+      "status": "SUCCEEDED",
+      "start_time": 1793076151.600305,
+      "end_time": 1793076151.6071198,
+      "error": null,
+      "result": {
+        "state_consistency": {
+          "consistent": true,
+          "divergent_keys": [],
+          "replicas": 3,
+          "unreachable": 0
+        },
+        "consistency": {
+          "state": "TRIGGERED",
+          "triggered_events": [
+            "network_partition_suspected",
+            "data_update_burst",
+            "state_divergence"
+          ],
+          "consistency_level": "strong",
+          "sync_interval_s": 0.1,
+          "consistency_strength": 0.85,
+          "event_adjustments": [
+            "network_partition -> timeout raised to >=300ms",
+            "data_update_burst -> sync_interval capped at 0.20s",
+            "state_divergence(battalion_attack,mission-state) -> sync<=0.10s, strength>=0.85"
+          ],
+          "mm1_wait_s": 0.0048,
+          "observed_divergent_keys": [
+            "battalion_attack",
+            "mission-state"
+          ],
+          "observed_consistent": false
+        }
+      },
+      "duration": 0.006814718246459961
+    },
+    "cleanup": {
+      "id": "cleanup",
+      "name": "\u6e05\u7406\u73af\u5883",
+      "status": "SUCCEEDED",
+      "start_time": 1793076151.6154695,
+      "end_time": 1793076151.6201003,
+      "error": null,
+      "result": {
+        "status": "restored"
+      },
+      "duration": 0.0046308040618896484
+    }
+  },
+  "updated_at": "2026-10-27T04:42:31.638428"
+}

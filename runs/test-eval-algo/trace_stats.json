@@ -1,0 +1,407 @@
+{
+  "available": true,
+  "jaeger": "http://jaeger:16686",
+  "query_duration_s": 1.865,
+  "trace_count": 234,
+  "span_total": 765,
+  "services": {
+    "orchestrator": {
+      "span_count": 197,
+      "error_count": 1,
+      "error_rate": 0.0051,
+      "mean_ms": 48.358,
+      "p50_ms": 5.267,
+      "p95_ms": 102.489,
+      "max_ms": 3133.373,
+      "first_error_at": 1793167029.824,
+      "last_error_at": 1793167029.824,
+      "operations": [
+        [
+          "GET /healthz",
+          141
+        ],
+        [
+          "GET scenario-mgr/scenario",
+          14
+        ],
+        [
+          "POST fire-control/engage",
+          14
+        ],
+        [
+          "POST /trigger",
+          14
+        ],
+        [
+          "POST telemetry-gw/ingest",
+          14
+        ]
+      ]
+    },
+    "scenario-mgr": {
+      "span_count": 56,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "mean_ms": 8.384,
+      "p50_ms": 6.574,
+      "p95_ms": 19.339,
+      "max_ms": 41.073,
+      "first_error_at": null,
+      "last_error_at": null,
+      "operations": [
+        [
+          "GET /healthz",
+          14
+        ],
+        [
+          "PUT state-store/state",
+          14
+        ],
+        [
+          "GET /scenario/battalion_attack",
+          14
+        ],
+        [
+          "POST log-service/log",
+          14
+        ]
+      ]
+    },
+    "entity-service": {
+      "span_count": 28,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "mean_ms": 1.385,
+      "p50_ms": 0.976,
+      "p95_ms": 3.332,
+      "max_ms": 3.755,
+      "first_error_at": null,
+      "last_error_at": null,
+      "operations": [
+        [
+          "GET /healthz",
+          14
+        ],
+        [
+          "GET /entities",
+          14
+        ]
+      ]
+    },
+    "comms-service": {
+      "span_count": 28,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "mean_ms": 2.311,
+      "p50_ms": 1.655,
+      "p95_ms": 7.335,
+      "max_ms": 8.127,
+      "first_error_at": null,
+      "last_error_at": null,
+      "operations": [
+        [
+          "GET /healthz",
+          14
+        ],
+        [
+          "POST /send",
+          14
+        ]
+      ]
+    },
+    "sensor-service": {
+      "span_count": 56,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "mean_ms": 5.783,
+      "p50_ms": 4.651,
+      "p95_ms": 14.34,
+      "max_ms": 18.604,
+      "first_error_at": null,
+      "last_error_at": null,
+      "operations": [
+        [
+          "GET /healthz",
+          14
+        ],
+        [
+          "GET entity-service/entities",
+          14
+        ],
+        [
+          "GET /tracks",
+          14
+        ],
+        [
+          "GET env-service/weather",
+          14
+        ]
+      ]
+    },
+    "fire-control": {
+      "span_count": 56,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "mean_ms": 14.472,
+      "p50_ms": 11.135,
+      "p95_ms": 43.039,
+      "max_ms": 61.764,
+      "first_error_at": null,
+      "last_error_at": null,
+      "operations": [
+        [
+          "GET /healthz",
+          14
+        ],
+        [
+          "GET sensor-service/tracks",
+          14
+        ],
+        [
+          "POST /engage",
+          14
+        ],
+        [
+          "POST comms-service/send",
+          14
+        ]
+      ]
+    },
+    "env-service": {
+      "span_count": 28,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "mean_ms": 1.255,
+      "p50_ms": 0.991,
+      "p95_ms": 3.406,
+      "max_ms": 4.865,
+      "first_error_at": null,
+      "last_error_at": null,
+      "operations": [
+        [
+          "GET /healthz",
+          14
+        ],
+        [
+          "GET /weather",
+          14
+        ]
+      ]
+    },
+    "log-service": {
+      "span_count": 135,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "mean_ms": 1.066,
+      "p50_ms": 0.832,
+      "p95_ms": 2.059,
+      "max_ms": 6.155,
+      "first_error_at": null,
+      "last_error_at": null,
+      "operations": [
+        [
+          "GET /metrics/",
+          107
+        ],
+        [
+          "GET /healthz",
+          14
+        ],
+        [
+          "POST /log",
+          14
+        ]
+      ]
+    },
+    "state-store": {
+      "span_count": 135,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "mean_ms": 2.04,
+      "p50_ms": 1.175,
+      "p95_ms": 6.722,
+      "max_ms": 11.081,
+      "first_error_at": null,
+      "last_error_at": null,
+      "operations": [
+        [
+          "GET /snapshot",
+          48
+        ],
+        [
+          "GET /healthz",
+          47
+        ],
+        [
+          "POST /replicate",
+          26
+        ],
+        [
+          "PUT /state/battalion_attack",
+          14
+        ]
+      ]
+    },
+    "telemetry-gw": {
+      "span_count": 28,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "mean_ms": 2.683,
+      "p50_ms": 1.587,
+      "p95_ms": 7.263,
+      "max_ms": 13.138,
+      "first_error_at": null,
+      "last_error_at": null,
+      "operations": [
+        [
+          "GET /healthz",
+          14
+        ],
+        [
+          "POST /ingest",
+          14
+        ]
+      ]
+    },
+    "sim-bridge": {
+      "span_count": 18,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "mean_ms": 3.419,
+      "p50_ms": 1.525,
+      "p95_ms": 7.058,
+      "max_ms": 24.687,
+      "first_error_at": null,
+      "last_error_at": null,
+      "operations": [
+        [
+          "GET /healthz",
+          14
+        ],
+        [
+          "GET /status",
+          2
+        ],
+        [
+          "POST /inject_fault",
+          1
+        ],
+        [
+          "POST /start",
+          1
+        ]
+      ]
+    }
+  },
+  "edges": {
+    "orchestrator->scenario-mgr": 28,
+    "orchestrator->entity-service": 14,
+    "orchestrator->comms-service": 14,
+    "orchestrator->sensor-service": 14,
+    "orchestrator->fire-control": 27,
+    "orchestrator->env-service": 14,
+    "orchestrator->log-service": 14,
+    "orchestrator->state-store": 14,
+    "orchestrator->telemetry-gw": 28,
+    "orchestrator->sim-bridge": 14,
+    "scenario-mgr->state-store": 14,
+    "scenario-mgr->log-service": 14,
+    "sensor-service->entity-service": 14,
+    "sensor-service->env-service": 14,
+    "fire-control->sensor-service": 14,
+    "fire-control->comms-service": 14
+  },
+  "failed_peers": {
+    "fire-control": 1
+  },
+  "sample_trace_ids": [
+    "f06f9b8355ce73a9f73036f4a63b973a",
+    "f4d1bf6df7d69b37e25db3c5366c736f",
+    "f50a025ec459aacdd02009e3a2959f0a",
+    "f66d09c0eaace06df8e30eda1866fd83",
+    "f704e6fdb2f2be4de3249d797c2bfb8d",
+    "f7597d76252ab66bdf10845f865493e1",
+    "f798d51a11174477f1226dd61f23ea29",
+    "f815fa22eb5a7f006650152690b4bad6",
+    "fb62ea8bd8d982edf87b4243ca53cab0",
+    "fbfb66e38d2428c7a8d28e7627901142"
+  ],
+  "runtime_graph": {
+    "orchestrator": [
+      "scenario-mgr",
+      "entity-service",
+      "comms-service",
+      "sensor-service",
+      "fire-control",
+      "env-service",
+      "log-service",
+      "state-store",
+      "telemetry-gw",
+      "sim-bridge"
+    ],
+    "scenario-mgr": [
+      "state-store",
+      "log-service"
+    ],
+    "entity-service": [],
+    "comms-service": [],
+    "sensor-service": [
+      "entity-service",
+      "env-service"
+    ],
+    "fire-control": [
+      "sensor-service",
+      "comms-service"
+    ],
+    "env-service": [],
+    "log-service": [],
+    "state-store": [],
+    "telemetry-gw": [],
+    "sim-bridge": []
+  },
+  "graph_diff": {
+    "design_edges": [
+      "fire-control->comms-service",
+      "fire-control->sensor-service",
+      "orchestrator->comms-service",
+      "orchestrator->entity-service",
+      "orchestrator->env-service",
+      "orchestrator->fire-control",
+      "orchestrator->log-service",
+      "orchestrator->scenario-mgr",
+      "orchestrator->sensor-service",
+      "orchestrator->sim-bridge",
+      "orchestrator->state-store",
+      "orchestrator->telemetry-gw",
+      "scenario-mgr->log-service",
+      "scenario-mgr->state-store",
+      "sensor-service->entity-service",
+      "sensor-service->env-service"
+    ],
+    "runtime_edges": [
+      "fire-control->comms-service",
+      "fire-control->sensor-service",
+      "orchestrator->comms-service",
+      "orchestrator->entity-service",
+      "orchestrator->env-service",
+      "orchestrator->fire-control",
+      "orchestrator->log-service",
+      "orchestrator->scenario-mgr",
+      "orchestrator->sensor-service",
+      "orchestrator->sim-bridge",
+      "orchestrator->state-store",
+      "orchestrator->telemetry-gw",
+      "scenario-mgr->log-service",
+      "scenario-mgr->state-store",
+      "sensor-service->entity-service",
+      "sensor-service->env-service"
+    ],
+    "missing_in_runtime": [],
+    "extra_in_runtime": [],
+    "coverage": 1.0
+  },
+  "lookback_s": 900,
+  "window_start": 1793166145.8026767,
+  "window_end": 1793167045.8026767,
+  "timestamp": 1793167047.6676536
+}

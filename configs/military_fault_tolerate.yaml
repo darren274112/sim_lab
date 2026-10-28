@@ -1,47 +1,59 @@
 name: military-fault-tolerate
 namespace: sim-test
 timeout: 600
-
 vars:
   target_service: comms-service
   scenario: air_defense
-
 steps:
-  - id: check_env
-    name: 检查环境
-    action: k8s.check_ready
-    params:
-      services: ["orchestrator", "scenario-mgr", "entity-service", "comms-service", "sensor-service", "fire-control", "env-service", "log-service", "state-store", "telemetry-gw", "sim-bridge"]
-    timeout: 60
-
-  - id: ross_ready
-    name: 检查ROSS
-    action: ross.check_ready
-    timeout: 30
-
-  - id: start_sim
-    name: 启动仿真
-    action: ross.start_sim
-    params:
-      scenario: "${vars.scenario}"
-    timeout: 60
-
-  - id: inject
-    name: 注入通信服务故障
-    action: fault.inject_pod_kill
-    params:
-      service: "${vars.target_service}"
-    timeout: 30
-
-  - id: tolerate
-    name: 调用容错算法（服务降级+动态调度）
-    action: algo.run_tolerate
-    params:
-      algo: fault_tolerate_baseline
-    timeout: 120
-
-  - id: cleanup
-    name: 清理
-    action: k8s.restore
-    timeout: 60
-    always_run: true
+- id: check_env
+  name: 检查环境
+  action: k8s.check_ready
+  params:
+    services:
+    - orchestrator
+    - scenario-mgr
+    - entity-service
+    - comms-service
+    - sensor-service
+    - fire-control
+    - env-service
+    - log-service
+    - state-store
+    - telemetry-gw
+    - sim-bridge
+  timeout: 60
+- id: ross_ready
+  name: 检查ROSS
+  action: ross.check_ready
+  timeout: 30
+- id: start_sim
+  name: 启动仿真
+  action: ross.start_sim
+  params:
+    scenario: ${vars.scenario}
+  timeout: 60
+- id: inject
+  name: 注入通信服务故障
+  action: fault.inject_pod_kill
+  params:
+    service: ${vars.target_service}
+  timeout: 30
+- id: tolerate
+  name: 调用容错算法（服务降级+动态调度）
+  action: algo.run_tolerate
+  params:
+    algo: fault_tolerate_baseline
+  timeout: 120
+- id: cleanup
+  name: 清理
+  action: k8s.restore
+  timeout: 60
+  always_run: true
+- id: eval
+  name: 仿真结果量化评估
+  action: eval.run
+  timeout: 60
+- id: eval_report
+  name: 输出评估报告
+  action: eval.summary
+  timeout: 30
