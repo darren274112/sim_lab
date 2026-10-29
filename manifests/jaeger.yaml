@@ -18,8 +18,8 @@ spec:
         - name: jaeger
           image: sim/jaeger:latest
           imagePullPolicy: IfNotPresent
-          # 基础镜像自带 uvicorn CMD，这里用 command+args 完全覆盖 entrypoint/cmd
-          command: ["/usr/local/bin/jaeger-all-in-one"]
+          # 显式指定 jaeger all-in-one 二进制 + 参数（quay.io/jaegertracing/all-in-one 1.x 的二进制在 /go/bin/）
+          command: ["/go/bin/all-in-one-linux"]
           args:
             - "--memory.max-traces=20000"
             - "--collector.otlp.enabled=true"

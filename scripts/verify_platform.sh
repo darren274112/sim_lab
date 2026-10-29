@@ -117,7 +117,8 @@ try:
     report["trigger"] = {
         "status": ((body.get("engage") or {}).get("mission") or {}).get("status"),
         "trace_id": body.get("trace_id"),
-        "health_ok": sum(1 for v in (body.get("health") or {}).values() if v == "ok"),
+        # /trigger 已不做平铺 healthz；就绪计数改用它上面自己对 10 服务做的 healthz
+        "health_ok": sum(1 for v in report["checks"].values() if v == 200),
     }
 except Exception as e:
     report["trigger"] = {"error": "%s: %s" % (type(e).__name__, e)}

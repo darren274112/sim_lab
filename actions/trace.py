@@ -24,19 +24,20 @@ SIM_SERVICES = [
 
 # 设计态拓扑：u -> [v...] 表示 u 调用 v（与 services/*/app.py 中的真实调用一致）
 DESIGN_GRAPH = {
-    "orchestrator": ["scenario-mgr", "fire-control", "telemetry-gw", "entity-service",
-                     "comms-service", "sensor-service", "env-service", "log-service",
-                     "state-store", "sim-bridge"],
-    "scenario-mgr": ["state-store", "log-service"],
-    "fire-control": ["sensor-service", "comms-service"],
+    # 嵌套式调用拓扑（非平铺）：最长链 5 层，含菱形依赖 / 交叉调用 / 共享汇聚点。
+    # orchestrator 只向下委派 fire-control / scenario-mgr 两个决策入口，其余服务
+    # 经嵌套调用链自然触达；state-store / log-service 为共享汇聚点（被 6 路写入）。
+    "orchestrator": ["fire-control", "scenario-mgr"],
+    "fire-control": ["sensor-service", "comms-service", "log-service"],
+    "scenario-mgr": ["sensor-service", "state-store", "log-service"],
     "sensor-service": ["entity-service", "env-service"],
-    "entity-service": [],
-    "comms-service": [],
-    "env-service": [],
-    "log-service": [],
+    "comms-service": ["telemetry-gw", "log-service"],
+    "entity-service": ["state-store", "log-service"],
+    "env-service": ["state-store"],
+    "telemetry-gw": ["state-store", "log-service"],
+    "sim-bridge": ["state-store", "log-service"],
     "state-store": [],
-    "telemetry-gw": [],
-    "sim-bridge": [],
+    "log-service": [],
 }
 
 
@@ -354,7 +355,7 @@ for i in range(N):
             body = json.loads(r.read().decode())
         st = ((body.get("engage") or {}).get("mission") or {}).get("status")
         last.append({"i": i, "status": st,
-                     "fire_control": (body.get("health") or {}).get("fire-control")})
+                     "log_status": (body.get("engage") or {}).get("log_status")})
         if st == "engaged":
             ok += 1
         else:

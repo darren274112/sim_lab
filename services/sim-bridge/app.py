@@ -1,4 +1,5 @@
 from common.base import create_app, REQUEST_COUNT
+from common import tracing
 from fastapi import HTTPException
 import os
 import re
@@ -170,6 +171,17 @@ def start(scenario: str = "battalion_attack",
         env["ROSS_FAULT_TARGET"] = str(ross_fault["target_lp"])
         env["ROSS_FAULT_AT"] = str(ross_fault["at_time"])
     threading.Thread(target=_run_ross, args=(cmd, rid, env), daemon=True).start()
+
+    # ROSS 引擎状态/事件上报到共享存储（sim-bridge -> state-store / log-service）
+    tracing.traced_json_request(
+        "PUT", "http://state-store:8080/state/ross-run",
+        body={"run_id": rid, "scenario": scenario, "end_time": end_time,
+              "lp_count": units + 4}, timeout=1.5,
+        span_name="PUT state-store/state")
+    tracing.traced_json_request(
+        "POST", "http://log-service:8080/log",
+        body={"event": "ross_started", "run_id": rid, "scenario": scenario},
+        timeout=1.5, span_name="POST log-service/log")
     return {
         "started": True,
         "scenario": scenario,

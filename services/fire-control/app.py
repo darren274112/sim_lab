@@ -29,12 +29,18 @@ def engage(target: dict):
     mission_id = f"FM-{engagements:04d}"
 
     s_tracks, tracks_body = tracing.traced_json_request(
-        "GET", "http://sensor-service:8080/tracks", timeout=4.0,
+        "GET", "http://sensor-service:8080/tracks", timeout=3.0,
         span_name="GET sensor-service/tracks")
     s_cmd, cmd_body = tracing.traced_json_request(
         "POST", "http://comms-service:8080/send",
         body={"mission_id": mission_id, "target": target.get("id"), "route": "cmd_net"},
-        span_name="POST comms-service/send")
+        timeout=2.0, span_name="POST comms-service/send")
+    # 审计留痕：交战决策 -> log-service（fire-control -> log-service）
+    s_log, _ = tracing.traced_json_request(
+        "POST", "http://log-service:8080/log",
+        body={"event": "engage", "mission_id": mission_id,
+              "target": target.get("id")}, timeout=1.5,
+        span_name="POST log-service/log")
 
     mission = {
         "target": target.get("id"),
@@ -42,11 +48,12 @@ def engage(target: dict):
         "mission_id": mission_id,
         "tracks_status": s_tracks,
         "comms_status": s_cmd,
+        "log_status": s_log,
     }
     fire_missions.append(mission)
     del fire_missions[:-50]
     return {"engaged": True, "mission_id": mission_id, "mission": mission,
-            "tracks": tracks_body, "command": cmd_body}
+            "tracks": tracks_body, "command": cmd_body, "log_status": s_log}
 
 
 @app.get("/status")

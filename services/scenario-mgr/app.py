@@ -25,11 +25,16 @@ def get_scenario(name: str):
     sc = scenarios.get(name)
     if sc is None:
         return {"error": "not found"}, 404
+    # 交叉调用：计划侧查询当前感知态势（scenario-mgr -> sensor-service，跨分支）
+    s_tracks, tracks_body = tracing.traced_json_request(
+        "GET", "http://sensor-service:8080/tracks", timeout=2.5,
+        span_name="GET sensor-service/tracks")
     s_state, _ = tracing.traced_json_request(
-        "PUT", f"http://state-store:8080/state/{name}", body=sc, timeout=3.0,
+        "PUT", f"http://state-store:8080/state/{name}", body=sc, timeout=1.5,
         span_name="PUT state-store/state")
     s_log, _ = tracing.traced_json_request(
         "POST", "http://log-service:8080/log",
-        body={"event": "scenario_loaded", "name": name}, timeout=3.0,
+        body={"event": "scenario_loaded", "name": name}, timeout=1.5,
         span_name="POST log-service/log")
-    return {**sc, "state_status": s_state, "log_status": s_log}
+    return {**sc, "tracks_status": s_tracks, "tracks": tracks_body,
+            "state_status": s_state, "log_status": s_log}

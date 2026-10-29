@@ -1,4 +1,5 @@
 from common.base import create_app, REQUEST_COUNT
+from common import tracing
 import os
 
 app = create_app()
@@ -13,6 +14,14 @@ def root():
 
 @app.post("/ingest")
 def ingest(data: dict):
+    """遥测落库：入本地队列 + 持久化共享状态（-> state-store）+ 审计（-> log-service）。"""
     REQUEST_COUNT.labels(method="POST", endpoint="/ingest").inc()
     telemetry.append(data)
-    return {"ingested": True}
+    s_state, _ = tracing.traced_json_request(
+        "PUT", "http://state-store:8080/state/telemetry-latest",
+        body=data, timeout=1.5, span_name="PUT state-store/state")
+    s_log, _ = tracing.traced_json_request(
+        "POST", "http://log-service:8080/log",
+        body={"event": "telemetry_ingested", "seq": len(telemetry)}, timeout=1.5,
+        span_name="POST log-service/log")
+    return {"ingested": True, "state_status": s_state, "log_status": s_log}

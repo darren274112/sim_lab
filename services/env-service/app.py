@@ -1,4 +1,5 @@
 from common.base import create_app, REQUEST_COUNT
+from common import tracing
 import os
 
 app = create_app()
@@ -13,5 +14,9 @@ def root():
 
 @app.get("/weather")
 def get_weather():
+    """环境参数：持久化到共享状态（env-service -> state-store）。"""
     REQUEST_COUNT.labels(method="GET", endpoint="/weather").inc()
-    return weather
+    s_state, _ = tracing.traced_json_request(
+        "PUT", "http://state-store:8080/state/env-snapshot",
+        body=weather, timeout=1.5, span_name="PUT state-store/state")
+    return {**weather, "state_status": s_state}
